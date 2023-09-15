@@ -35,18 +35,25 @@
  // COMPLETAR EL SERVIDOR  .....
  func main() {
  
-	 CONN_TYPE := "tcp"
-	 endpoint := ":30000"
- 	 
-		 for {
-			listener, err := net.Listen(CONN_TYPE, endpoint)
-	 		com.CheckError(err)
- 
-	 		log.SetFlags(log.Lshortfile | log.Lmicroseconds)
+	CONN_TYPE := "tcp"
+	endpoint := ":30000"
 
-		 	log.Println("***** Listening for new connection in endpoint ", endpoint)
-		 	conn, err := listener.Accept()
-		 	defer conn.Close()
-		 	com.CheckError(err)
-			}	 
+	requestTimeChan := make(chan com.TimeCommEvent)
+	replayTimeChan := make(chan com.TimeCommEvent)
+ 	 
+	for {
+		listener, err := net.Listen(CONN_TYPE, endpoint)
+		com.CheckError(err)
+	
+		log.SetFlags(log.Lshortfile | log.Lmicroseconds)
+
+		log.Println("***** Listening for new connection in endpoint ", endpoint)
+		conn, err := listener.Accept()
+				
+		listener -> primo
+		log.Println(primo)
+
+		defer conn.Close()
+		com.CheckError(err)
+	}	 
  }
