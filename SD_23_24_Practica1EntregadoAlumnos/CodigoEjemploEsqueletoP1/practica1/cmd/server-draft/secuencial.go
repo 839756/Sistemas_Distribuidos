@@ -2,11 +2,11 @@
 package main
 
 import (
-	"encoding/gob"
-	"log"
-	"fmt"
-	"net"
-	"practica1/com"
+"encoding/gob"
+"log"
+"fmt"
+"net"
+"practica1/com"
 )
 
 // PRE: verdad = !foundDivisor
@@ -43,7 +43,7 @@ func handleRequest(conn net.Conn) {
 	com.CheckError(err)
 
 	if request.Id == -1 {
-		fmt.Println("Received end request from client.")
+		fmt.Println("Last client")
 		return
 	}
 
@@ -58,7 +58,9 @@ func handleRequest(conn net.Conn) {
 	com.CheckError(err)
 }
 
+// COMPLETAR EL SERVIDOR  .....
 func main() {
+
 	CONN_TYPE := "tcp"
 	endpoint := ":30000"
 
@@ -72,9 +74,7 @@ func main() {
 	for {
 		conn, err := listener.Accept()
 		com.CheckError(err)
-
-		go handleRequest(conn) // Crea una goroutine para manejar cada petición
+		
+		handleRequest(conn)	 
 	}
-
-	fmt.Println("Sale del for")
 }

@@ -2,11 +2,11 @@
 package main
 
 import (
-"encoding/gob"
-"log"
-"fmt"
-"net"
-"practica1/com"
+	"encoding/gob"
+	"log"
+	"fmt"
+	"net"
+	"practica1/com"
 )
 
 // PRE: verdad = !foundDivisor
@@ -32,9 +32,33 @@ func findPrimes(interval com.TPInterval) (primes []int) {
 	return primes
 }
 
-// COMPLETAR EL SERVIDOR  .....
-func main() {
+func handleRequest(conn net.Conn) {
+	defer conn.Close()
 
+	decoder := gob.NewDecoder(conn)
+	encoder := gob.NewEncoder(conn)
+
+	var request com.Request
+	err := decoder.Decode(&request)
+	com.CheckError(err)
+
+	if request.Id == -1 {
+		fmt.Println("Last client.")
+		return
+	}
+
+	// Process the request
+	reply := com.Reply{
+		Id:     request.Id,
+		Primes: findPrimes(request.Interval),
+	}
+
+	// Send the reply back to the client
+	err = encoder.Encode(reply)
+	com.CheckError(err)
+}
+
+func main() {
 	CONN_TYPE := "tcp"
 	endpoint := ":30000"
 
@@ -49,28 +73,8 @@ func main() {
 		conn, err := listener.Accept()
 		com.CheckError(err)
 
-		defer conn.Close()
-		
-		decoder := gob.NewDecoder(conn)
-		encoder := gob.NewEncoder(conn)
+		go handleRequest(conn) // Crea una goroutine para manejar cada petición
+	}
 
-		var request com.Request
-		err = decoder.Decode(&request)
-		com.CheckError(err)
-
-		if (request.Id == -1) {
-			fmt.Println("Received end request from client.")
-			return
-		}
-
-		// Process the request
-		reply := com.Reply {
-			Id: request.Id,
-			Primes: findPrimes(request.Interval),
-		}
-
-		// Send the reply back to the client
-		err = encoder.Encode(reply)
-		com.CheckError(err)
-	}	 
+	fmt.Println("Sale del for")
 }
