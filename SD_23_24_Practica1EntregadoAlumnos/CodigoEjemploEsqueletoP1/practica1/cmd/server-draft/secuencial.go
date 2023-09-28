@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -58,7 +57,6 @@ func handleRequest(conn net.Conn) {
 	com.CheckError(err)
 }
 
-// COMPLETAR EL SERVIDOR  .....
 func main() {
 
 	CONN_TYPE := "tcp"

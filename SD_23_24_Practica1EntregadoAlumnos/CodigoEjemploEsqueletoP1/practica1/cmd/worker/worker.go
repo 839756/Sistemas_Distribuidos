@@ -1,20 +1,11 @@
-/*
-* AUTOR: Rafael Tolosana Calasanz y Unai Arronategui
-* ASIGNATURA: 30221 Sistemas Distribuidos del Grado en Ingeniería Informática
-*			Escuela de Ingeniería y Arquitectura - Universidad de Zaragoza
-* FECHA: septiembre de 2022
-* FICHERO: server-draft.go
-* DESCRIPCIÓN: contiene la funcionalidad esencial para realizar los servidores
-*				correspondientes a la práctica 1
- */
 package main
 
 import (
-	//"encoding/gob"
-	"log"
-
-	"net"
-	"practica1/com"
+"encoding/gob"
+"log"
+"fmt"
+"net"
+"practica1/com"
 )
 
 // PRE: verdad = !foundDivisor
@@ -40,22 +31,48 @@ func findPrimes(interval com.TPInterval) (primes []int) {
 	return primes
 }
 
-// COMPLETAR EL SERVIDOR  .....
+func handleRequest(conn net.Conn) {
+	defer conn.Close()
+
+	decoder := gob.NewDecoder(conn)
+	encoder := gob.NewEncoder(conn)
+
+	var request com.Request
+	err := decoder.Decode(&request)
+	com.CheckError(err)
+
+	if request.Id == -1 {
+		fmt.Println("Last client")
+		return
+	}
+
+	// Process the request
+	reply := com.Reply{
+		Id:     request.Id,
+		Primes: findPrimes(request.Interval),
+	}
+
+	// Send the reply back to the client
+	err = encoder.Encode(reply)
+	com.CheckError(err)
+}
+
 func main() {
 
 	CONN_TYPE := "tcp"
 	endpoint := ":30000"
-
 
 	listener, err := net.Listen(CONN_TYPE, endpoint)
 	com.CheckError(err)
 
 	log.SetFlags(log.Lshortfile | log.Lmicroseconds)
 
-	
-		log.Println("***** Listening for new connection in endpoint ", endpoint)
+	log.Println("***** Listening for new connection in endpoint ", endpoint)
+
+	for {
 		conn, err := listener.Accept()
-		defer conn.Close()
 		com.CheckError(err)
-	
+		
+		handleRequest(conn)	 
+	}
 }

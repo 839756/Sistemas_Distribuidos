@@ -75,6 +75,4 @@ func main() {
 
 		go handleRequest(conn) // Crea una goroutine para manejar cada petición
 	}
-
-	fmt.Println("Sale del for")
 }
