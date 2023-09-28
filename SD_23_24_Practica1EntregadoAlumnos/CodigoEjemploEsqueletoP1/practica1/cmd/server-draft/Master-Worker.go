@@ -82,31 +82,30 @@ func handleWorker(address string, client <-chan net.Conn) {
 
 		if request.Id == -1 {
 			fmt.Println("Last client.")
-			return
+		} else {
+			// Connect to the worker
+			wConn, err := net.Dial("tcp", endpoint)
+			com.CheckError(err)
+
+			defer wConn.Close()
+
+			// New decoder and encoder for worker communication
+			wDecoder := gob.NewDecoder(wConn)
+			wEncoder := gob.NewEncoder(wConn)
+
+			// Send the worker work
+			err = wEncoder.Encode(&request)
+			com.CheckError(err)
+
+			// Get the worker reply
+			var reply com.Request
+			err := wDecoder.Decode(&reply)
+			com.CheckError(err)
+
+			// Send the reply to the client
+			err = encoder.Encode(&reply)
+			com.CheckError(err)
 		}
-
-		// Connect to the worker
-		wConn, err := net.Dial("tcp", endpoint)
-		com.CheckError(err)
-
-		defer wConn.Close()
-
-		// New decoder and encoder for worker communication
-		wDecoder := gob.NewDecoder(wConn)
-		wEncoder := gob.NewEncoder(wConn)
-
-		// Send the worker work
-		err = wEncoder.Encode(&request)
-		com.CheckError(err)
-
-		// Get the worker reply
-		var reply com.Request
-		err := wDecoder.Decode(&reply)
-		com.CheckError(err)
-
-		// Send the reply to the client
-		err = encoder.Encode(&reply)
-		com.CheckError(err)
 	}
 }
 
@@ -130,7 +129,7 @@ func main() {
 		// Start the worker
 		go startWorker(address)
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 
 		// Let the worker work
 		go handleWorker(address,client)
