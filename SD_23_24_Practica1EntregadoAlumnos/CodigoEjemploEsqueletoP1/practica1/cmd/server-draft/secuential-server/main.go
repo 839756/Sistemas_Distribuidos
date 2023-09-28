@@ -4,11 +4,11 @@
 package main
 
 import (
-"encoding/gob"
-"log"
-"fmt"
-"net"
-"practica1/com"
+	"encoding/gob"
+	"fmt"
+    "net"
+	"log"
+    "practica1/com"
 )
 
 // PRE: verdad = !foundDivisor
@@ -34,6 +34,7 @@ func findPrimes(interval com.TPInterval) (primes []int) {
 	return primes
 }
 
+
 func handleRequest(conn net.Conn) {
 	defer conn.Close()
 
@@ -49,10 +50,10 @@ func handleRequest(conn net.Conn) {
 
 	// Check if the request ID is -1, indicating it's the last client
 	if request.Id == -1 {
-		fmt.Println("Last client")
+		fmt.Println("Last client.")
 		return
 	}
-
+	
 	// Prepare a reply based on the request, including finding prime numbers
 	reply := com.Reply{
 		Id:     request.Id,
@@ -63,6 +64,7 @@ func handleRequest(conn net.Conn) {
 	err = encoder.Encode(reply)
 	com.CheckError(err)
 }
+
 
 func main() {
 

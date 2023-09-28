@@ -119,7 +119,7 @@ func main() {
 
 	go handleRequestsDelays(requestTimeChan, replayTimeChan)
 
-	endpoint := "127.0.0.1:30000"
+	endpoint := "127.0.0.1:29120"
 	numIt := 10
 	requestTmp := 6
 	interval := com.TPInterval{Min: 1000, Max: 7000}

@@ -4,11 +4,11 @@
 package main
 
 import (
-"encoding/gob"
-"log"
-"fmt"
-"net"
-"practica1/com"
+	"encoding/gob"
+	"fmt"
+	"log"
+    "net"
+    "practica1/com"
 )
 
 // PRE: verdad = !foundDivisor
@@ -34,6 +34,7 @@ func findPrimes(interval com.TPInterval) (primes []int) {
 	return primes
 }
 
+
 func handleRequest(conn net.Conn) {
 	defer conn.Close()
 
@@ -49,10 +50,10 @@ func handleRequest(conn net.Conn) {
 
 	// Check if the request ID is -1, indicating it's the last client
 	if request.Id == -1 {
-		fmt.Println("Last client")
+		fmt.Println("Last client.")
 		return
 	}
-
+	
 	// Prepare a reply based on the request, including finding prime numbers
 	reply := com.Reply{
 		Id:     request.Id,
@@ -64,8 +65,16 @@ func handleRequest(conn net.Conn) {
 	com.CheckError(err)
 }
 
-func main() {
+func poolHandle(client <-chan net.Conn){
+	// Loop through each connection received from the 'client' channel.
+	for conn := range client{
 
+		// Call the 'handleRequest' function to process the connection.
+		handleRequest(conn)
+	}
+}
+
+func main() {
 	CONN_TYPE := "tcp"
 	endpoint := ":29120"
 
@@ -76,10 +85,22 @@ func main() {
 
 	log.Println("***** Listening for new connection in endpoint ", endpoint)
 
+	client := make(chan net.Conn)
+
+	poolSize := 5
+    
+    for i := 0; i < poolSize; i++ {
+		// Create a pool of goroutines to handle incoming connections.
+        go poolHandle(client)
+    }
+
 	for {
-		conn, err := listener.Accept()
-		com.CheckError(err)
-		
-		handleRequest(conn)	 
-	}
+        conn, err := listener.Accept()
+        com.CheckError(err)
+
+    	// Send the newly accepted connection to one of the goroutines in the pool.
+        client <- conn
+    }
+
+
 }

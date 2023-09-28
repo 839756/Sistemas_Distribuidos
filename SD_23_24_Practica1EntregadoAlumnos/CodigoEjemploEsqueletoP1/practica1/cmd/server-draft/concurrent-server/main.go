@@ -1,10 +1,15 @@
-package myutils
+//Autor: Jorge Leris Lacort - 845647
+//Autor: Andrei Gabriel Vlasceanu - 839756
+
+
+package main
 
 import (
 	"encoding/gob"
 	"fmt"
-	"net"
-	"practica1/com"
+    "net"
+	"log"
+    "practica1/com"
 )
 
 // PRE: verdad = !foundDivisor
@@ -34,24 +39,49 @@ func findPrimes(interval com.TPInterval) (primes []int) {
 func handleRequest(conn net.Conn) {
 	defer conn.Close()
 
+	// Create a decoder and encoder for the network connection
 	decoder := gob.NewDecoder(conn)
 	encoder := gob.NewEncoder(conn)
 
+	// Declare a variable to hold the incoming request
 	var request com.Request
+	// Decode the incoming request and check for errors
 	err := decoder.Decode(&request)
 	com.CheckError(err)
 
+	// Check if the request ID is -1, indicating it's the last client
 	if request.Id == -1 {
 		fmt.Println("Last client.")
 		return
 	}
-	// Process the request
+
+	// Prepare a reply based on the request, including finding prime numbers
 	reply := com.Reply{
 		Id:     request.Id,
 		Primes: findPrimes(request.Interval),
 	}
 
-	// Send the reply back to the client
+	// Transmit the response
 	err = encoder.Encode(reply)
 	com.CheckError(err)
+}
+
+
+func main() {
+	CONN_TYPE := "tcp"
+	endpoint := ":29120"
+
+	listener, err := net.Listen(CONN_TYPE, endpoint)
+	com.CheckError(err)
+
+	log.SetFlags(log.Lshortfile | log.Lmicroseconds)
+
+	log.Println("***** Listening for new connection in endpoint ", endpoint)
+
+	for {
+		conn, err := listener.Accept()
+		com.CheckError(err)
+
+		go handleRequest(conn) // Create a goroutine to handle each request.
+	}
 }

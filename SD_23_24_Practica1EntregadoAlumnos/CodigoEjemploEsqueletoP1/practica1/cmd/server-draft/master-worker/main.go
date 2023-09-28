@@ -1,6 +1,10 @@
+//Autor: Jorge Leris Lacort - 845647
+//Autor: Andrei Gabriel Vlasceanu - 839756
+
 package main
 
 import (
+	"time"
 	"encoding/gob"
 	"log"
 	"fmt"
@@ -34,35 +38,19 @@ func findPrimes(interval com.TPInterval) (primes []int) {
 	return primes
 }
 
-
-func handleRequest(conn net.Conn) {
-	defer conn.Close()
-
-	decoder := gob.NewDecoder(conn)
-	encoder := gob.NewEncoder(conn)
-
-	var request com.Request
-	err := decoder.Decode(&request)
-	com.CheckError(err)
-
-	if request.Id == -1 {
-		fmt.Println("Last client.")
-		return
-	}
-	// Process the request
-	reply := com.Reply{
-		Id:     request.Id,
-		Primes: findPrimes(request.Interval),
-	}
-
-	// Send the reply back to the client
-	err = encoder.Encode(reply)
-	com.CheckError(err)
-}
-
 func startWorker(address string) {
 	// Hacer que se ejecute un script que compile y que ejecute los workers
-	// cmd := exec.Command("ssh","","/home/a839756/SD/practica1/cmd/worker")
+	// cmd := exec.Command("ssh","address","go run worker.go")
+	// err := cmd.Run()
+	//com.CheckError(err)
+
+	instr := "cd practica1/cmd/worker && go run worker.go"
+        // Hacer que se ejecute un script que compile y que ejecute los workers
+        cmd := exec.Command("ssh",address, instr)
+        err := cmd.Run()
+        com.CheckError(err)
+        fmt.Println("Ha conseguido correr el worker")
+
 }
 
 func handleWorker(address string, client <-chan net.Conn) {
@@ -94,16 +82,16 @@ func handleWorker(address string, client <-chan net.Conn) {
 			wEncoder := gob.NewEncoder(wConn)
 
 			// Send the worker work
-			err = wEncoder.Encode(&request)
+			err = wEncoder.Encode(request)
 			com.CheckError(err)
 
 			// Get the worker reply
 			var reply com.Request
-			err := wDecoder.Decode(&reply)
+			err = wDecoder.Decode(&reply)
 			com.CheckError(err)
 
 			// Send the reply to the client
-			err = encoder.Encode(&reply)
+			err = encoder.Encode(reply)
 			com.CheckError(err)
 		}
 	}
@@ -113,6 +101,10 @@ func handleWorker(address string, client <-chan net.Conn) {
 // 2.5    29120         29129       9              12
 
 func main() {
+
+	CONN_TYPE := "tcp"
+	endpoint := ":29120"
+	
 	listener, err := net.Listen(CONN_TYPE, endpoint)
 	com.CheckError(err)
 
@@ -124,15 +116,18 @@ func main() {
 
 	for i := 10; i <=12; i++ {
 		// Setting up IP
+		// Setting up IP
 		address := fmt.Sprintf("%s%d","192.168.3.",i)
-		
+
 		// Start the worker
 		go startWorker(address)
-
+		fmt.Println("Ha corrido uno")
 		time.Sleep(1 * time.Second)
-
+		fmt.Println("Antes de manejar trabajador")
 		// Let the worker work
 		go handleWorker(address,client)
+		fmt.Println("Despues de manejar trabajador")
+
 	}
 
 	for {
