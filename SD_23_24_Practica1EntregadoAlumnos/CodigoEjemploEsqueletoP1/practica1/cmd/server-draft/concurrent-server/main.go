@@ -81,6 +81,7 @@ func main() {
 	for {
 		conn, err := listener.Accept()
 		com.CheckError(err)
+		log.Println("Client accepted")
 
 		go handleRequest(conn) // Create a goroutine to handle each request.
 	}

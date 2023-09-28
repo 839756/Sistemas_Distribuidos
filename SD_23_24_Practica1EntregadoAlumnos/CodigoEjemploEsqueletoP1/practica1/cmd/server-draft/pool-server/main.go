@@ -68,7 +68,6 @@ func handleRequest(conn net.Conn) {
 func poolHandle(client <-chan net.Conn){
 	// Loop through each connection received from the 'client' channel.
 	for conn := range client{
-
 		// Call the 'handleRequest' function to process the connection.
 		handleRequest(conn)
 	}
@@ -97,7 +96,7 @@ func main() {
 	for {
         conn, err := listener.Accept()
         com.CheckError(err)
-
+		log.Println("Client accepted")
     	// Send the newly accepted connection to one of the goroutines in the pool.
         client <- conn
     }

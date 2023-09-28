@@ -3,7 +3,7 @@
 # Define las direcciones IP de las máquinas remotas
 remote_ips=("192.168.3.10" "192.168.3.11" "192.168.3.12")
 
-# Define el usuario remoto
+# Define el usuario
 remote_user="a839756"
 
 # Define el puerto que deseas verificar y matar

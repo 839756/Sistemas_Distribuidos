@@ -39,18 +39,11 @@ func findPrimes(interval com.TPInterval) (primes []int) {
 }
 
 func startWorker(address string) {
-	// Hacer que se ejecute un script que compile y que ejecute los workers
-	// cmd := exec.Command("ssh","address","go run worker.go")
-	// err := cmd.Run()
-	//com.CheckError(err)
-
-	instr := "cd practica1/cmd/worker && go run worker.go"
-        // Hacer que se ejecute un script que compile y que ejecute los workers
-        cmd := exec.Command("ssh",address, instr)
-        err := cmd.Run()
-        com.CheckError(err)
-        fmt.Println("Ha conseguido correr el worker")
-
+	instruction := "cd practica1/cmd/worker && go run worker.go"
+    // Hacer que se ejecute un script que compile y que ejecute los workers
+	cmd := exec.Command("ssh",address, instruction)
+	err := cmd.Run()
+	com.CheckError(err)
 }
 
 func handleWorker(address string, client <-chan net.Conn) {
@@ -116,23 +109,19 @@ func main() {
 
 	for i := 10; i <=12; i++ {
 		// Setting up IP
-		// Setting up IP
 		address := fmt.Sprintf("%s%d","192.168.3.",i)
-
 		// Start the worker
 		go startWorker(address)
-		fmt.Println("Ha corrido uno")
+
 		time.Sleep(1 * time.Second)
-		fmt.Println("Antes de manejar trabajador")
 		// Let the worker work
 		go handleWorker(address,client)
-		fmt.Println("Despues de manejar trabajador")
-
 	}
 
 	for {
         conn, err := listener.Accept()
         com.CheckError(err)
+		log.Println("Client accepted")
 
         client <- conn
     }
