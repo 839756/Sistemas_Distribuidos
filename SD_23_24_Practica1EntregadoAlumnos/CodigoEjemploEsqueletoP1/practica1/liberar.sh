@@ -4,7 +4,7 @@
 remote_ips=("192.168.3.10" "192.168.3.11" "192.168.3.12")
 
 # Define el usuario
-remote_user="a839756"
+remote_user="$USER"
 
 # Define el puerto que deseas verificar y matar
 port_to_kill=29120

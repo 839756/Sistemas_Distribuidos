@@ -4,7 +4,7 @@
 base_ip="192.168.3."
 
 # Usuario para la conexión SSH
-usuario="a839756"
+usuario="$USER"
 
 # Carpeta que deseas copiar
 carpeta_origen="../practica1"
