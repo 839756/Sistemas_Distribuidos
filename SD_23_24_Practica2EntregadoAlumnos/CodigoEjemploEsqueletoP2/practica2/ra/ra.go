@@ -39,13 +39,19 @@ type RASharedDB struct {
     chrep       chan bool			
     Mutex       sync.Mutex // mutex para proteger concurrencia sobre las variables
     // TODO: completar
+    exclude    map[string]map[string] bool // Matriz de exclusión formada por un mapa de mapas de booleanos
 }
 
 func New(me int, usersFile string) (*RASharedDB) {
     messageTypes := []Message{Request, Reply}
     msgs = ms.New(me, usersFile string, messageTypes)
-    ra := RASharedDB{0, 0, 0, false, []int{}, &msgs,  make(chan bool),  make(chan bool), &sync.Mutex{}}
+    ra := RASharedDB{0, 0, 0, false, []int{}, &msgs,  make(chan bool),  make(chan bool), &sync.Mutex{}, make(map[string]map[string]bool)}
     // TODO completar
+    ra.exclude["read"]["read"] = false
+    ra.exclude["read"]["write"] = true
+    ra.exclude["write"]["read"] = true
+    ra.exclude["write"]["write"] = true
+    
     return &ra
 }
 
