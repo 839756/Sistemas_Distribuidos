@@ -13,7 +13,6 @@ package ra
 import (
     "practica2/ms"
     "sync"
-    "github.com/DistributedClocks/GoVector/govec"
     "github.com/DistributedClocks/GoVector/govec/vclock"
 )
 
@@ -22,14 +21,15 @@ const(
 )
 
 type Request struct{
-    Clock   int
+    Clock   vclock.VClock
     Pid     int
+
 }
 
 type Reply struct{}
 
 type RASharedDB struct {
-    OurSeqNum   vclock.VClock				    // Numero de secuencia enviado del propio nodo
+    OurSeqNum   vclock.VClock		// Numero de secuencia enviado del propio nodo
     HigSeqNum   int				    // El número de secuencia más alto recibido
     OutRepCnt   int				    // Número de respuestas esperado
     ReqCS       bool				// ¿Está haciendo una peticion?
@@ -66,8 +66,10 @@ func (ra *RASharedDB) PostProtocol(){
     for pid := 0; pid <= LE; pid++ {    // Se recorren todos los procesos lector/escritor
         
         if ra.RepDefd[pid] {            // for each j ∈ perm_delayedi
-
+            
+            ra.Mutex.Lock()
             ra.ms.Send(pid+1, Reply{})  // do send PERMISSION(i) to pj 
+            ra.Mutex.Unlock()
             ra.RepDefd[pid] = false;    // perm_delayedi ← ∅
         }
     }  //end for

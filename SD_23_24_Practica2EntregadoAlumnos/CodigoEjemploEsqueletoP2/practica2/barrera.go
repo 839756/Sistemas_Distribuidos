@@ -3,6 +3,7 @@ package main
 import (
 	"practica2/ra"
 	"practica2/ms"
+	"practica2/receptor"
 	"log"
 )
 
@@ -10,7 +11,7 @@ import (
 func main(){
 	log.SetFlags ( log.Lshortfile | log.Lmicroseconds )
 	usersFile := "./ms/users.txt"
-	messages := []ms.Message{}
+	messages := []ms.Message{receptor.CheckPoint}
 	msg := ms.New(ra.LE + 1,usersFile, messages)
 	for i := 1; i <= ra.LE; i++ {
 		_ = msg.Receive()
@@ -18,6 +19,6 @@ func main(){
 	}
 	log.Println("Todos los procesos han llegado a la barrera")
 	for i := 1; i <= ra.LE; i++ {
-		msg.Send(i, )
+		msg.Send(i, receptor.CheckPoint)
 	}
 }
