@@ -77,6 +77,11 @@ func Register(messageTypes []Message) {
 	}
 }
 
+// Cuando un mensaje es recibido se utiliza para saber quién es el remitente.
+func (ms *MessageSystem) WhoSends() int {
+	return ms.me
+}
+
 // Pre: whoIam es el pid del proceso que inicializa este ms
 //
 //	usersFile es la ruta a un fichero de texto que en cada línea contiene IP:puerto de cada participante

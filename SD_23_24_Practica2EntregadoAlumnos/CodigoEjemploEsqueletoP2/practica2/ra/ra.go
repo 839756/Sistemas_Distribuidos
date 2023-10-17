@@ -1,5 +1,7 @@
 /*
 * AUTOR: Rafael Tolosana Calasanz
+* AUTOR: Jorge Leris Lacort - 845647
+* AUTOR: Andrei Gabriel Vlasceanu - 839756
 * ASIGNATURA: 30221 Sistemas Distribuidos del Grado en Ingeniería Informática
 *			Escuela de Ingeniería y Arquitectura - Universidad de Zaragoza
 * FECHA: septiembre de 2021
@@ -14,7 +16,7 @@ import (
 )
 
 const(
-    LE = 3;
+    LE = 4
 )
 
 type Request struct{
@@ -35,13 +37,7 @@ type RASharedDB struct {
     chrep       chan bool			
     Mutex       sync.Mutex // mutex para proteger concurrencia sobre las variables
     // TODO: completar
-    me 		int				
 }
-
-const {
-    N := 4                          // Nodos del sistema
-}
-
 
 func New(me int, usersFile string) (*RASharedDB) {
     messageTypes := []Message{Request, Reply}
@@ -87,8 +83,6 @@ func (ra *RASharedDB) request(){
 func (ra *RASharedDB) permission(){
     // TODO completar
 }
-
-
 
 func (ra *RASharedDB) Stop(){
     ra.ms.Stop()
