@@ -11,8 +11,10 @@
 package ra
 
 import (
-    "ms"
+    "practica2/ms"
     "sync"
+    "github.com/DistributedClocks/GoVector/govec"
+    "github.com/DistributedClocks/GoVector/govec/vclock"
 )
 
 const(
@@ -27,11 +29,11 @@ type Request struct{
 type Reply struct{}
 
 type RASharedDB struct {
-    OurSeqNum   int				    // Numero de secuencia enviado del propio nodo
+    OurSeqNum   vclock.VClock				    // Numero de secuencia enviado del propio nodo
     HigSeqNum   int				    // El número de secuencia más alto recibido
     OutRepCnt   int				    // Número de respuestas esperado
     ReqCS       bool				// ¿Está haciendo una peticion?
-    RepDefd     bool[]		    	// Nodos los cuales han sido postergados
+    RepDefd     []bool		    	// Nodos los cuales han sido postergados
     ms          *MessageSystem		// Tipo mensaje
     done        chan bool			// Canal para confirmar que ha terminado
     chrep       chan bool			
