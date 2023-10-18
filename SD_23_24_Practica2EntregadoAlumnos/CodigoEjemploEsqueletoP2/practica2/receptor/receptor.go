@@ -3,7 +3,7 @@
 * AUTOR: Andrei Gabriel Vlasceanu - 839756
 * ASIGNATURA: 30221 Sistemas Distribuidos del Grado en Ingeniería Informática
 *			Escuela de Ingeniería y Arquitectura - Universidad de Zaragoza
-* FECHA: septiembre de 2021
+* FECHA: octubre de 2023
 * FICHERO: receptor.go
 * DESCRIPCIÓN: Implementación de la función encargada de recibir los mensajes del sistema
  */
