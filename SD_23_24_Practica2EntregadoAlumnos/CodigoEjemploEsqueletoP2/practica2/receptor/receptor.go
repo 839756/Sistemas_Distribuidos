@@ -1,3 +1,13 @@
+/*
+* AUTOR: Jorge Leris Lacort - 845647
+* AUTOR: Andrei Gabriel Vlasceanu - 839756
+* ASIGNATURA: 30221 Sistemas Distribuidos del Grado en Ingeniería Informática
+*			Escuela de Ingeniería y Arquitectura - Universidad de Zaragoza
+* FECHA: septiembre de 2021
+* FICHERO: receptor.go
+* DESCRIPCIÓN: Implementación de la función encargada de recibir los mensajes del sistema
+ */
+
 package receptor
 
 import (
