@@ -3,7 +3,7 @@
 * AUTOR: Andrei Gabriel Vlasceanu - 839756
 * ASIGNATURA: 30221 Sistemas Distribuidos del Grado en Ingeniería Informática
 *			Escuela de Ingeniería y Arquitectura - Universidad de Zaragoza
-* FECHA: octubre de 2021
+* FECHA: octubre de 2023
 * FICHERO: barrera.go
 * DESCRIPCIÓN: Implementación de la barrera distribuida del sistema
  */
