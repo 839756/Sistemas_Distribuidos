@@ -7,94 +7,167 @@
 * FECHA: septiembre de 2021
 * FICHERO: ricart-agrawala.go
 * DESCRIPCIÓN: Implementación del algoritmo de Ricart-Agrawala Generalizado en Go
-*/
+ */
 package ra
 
 import (
-    "practica2/ms"
-    "sync"
-    "github.com/DistributedClocks/GoVector/govec/vclock"
+	"log"
+	"practica2/ms"
+	"strconv"
+	"sync"
+
+	"github.com/DistributedClocks/GoVector/govec/vclock"
 )
 
-const(
-    LE = 4
+const (
+	LE = 4
 )
 
-type Request struct{
-    Clock   vclock.VClock
-    Pid     int
-
+type Request struct {
+	Clock     vclock.VClock
+	Pid       int
+	Operation string
 }
 
 type Reply struct{}
 
 type RASharedDB struct {
-    OurSeqNum   vclock.VClock		// Numero de secuencia enviado del propio nodo
-    HigSeqNum   int				    // El número de secuencia más alto recibido
-    OutRepCnt   int				    // Número de respuestas esperado
-    ReqCS       bool				// ¿Está haciendo una peticion?
-    RepDefd     []bool		    	// Nodos los cuales han sido postergados
-    ms          *MessageSystem		// Tipo mensaje
-    done        chan bool			// Canal para confirmar que ha terminado
-    chrep       chan bool			
-    Mutex       sync.Mutex // mutex para proteger concurrencia sobre las variables
-    // TODO: completar
-    exclude    map[string]map[string] bool // Matriz de exclusión formada por un mapa de mapas de booleanos
+	OurSeqNum vclock.VClock     // Numero de secuencia enviado del propio nodo
+	HigSeqNum vclock.VClock     // El número de secuencia más alto recibido
+	OutRepCnt int               // Número de respuestas esperado
+	ReqCS     bool              // ¿Está haciendo una peticion?
+	RepDefd   []bool            // Nodos los cuales han sido postergados
+	ms        *ms.MessageSystem // Tipo mensaje
+	done      chan bool         // Canal para confirmar que ha terminado
+	chrep     chan bool
+	Mutex     sync.Mutex // mutex para proteger concurrencia sobre las variables
+	// TODO: completar
+	exclude   map[string]map[string]bool // Matriz de exclusión formada por un mapa de mapas de booleanos
+	operation string                     // Operación que hace el nodo
+	repl      chan Reply
+	reqt      chan Request
 }
 
-func New(me int, usersFile string) (*RASharedDB) {
-    messageTypes := []Message{Request, Reply}
-    msgs = ms.New(me, usersFile string, messageTypes)
-    ra := RASharedDB{0, 0, 0, false, []int{}, &msgs,  make(chan bool),  make(chan bool), &sync.Mutex{}, make(map[string]map[string]bool)}
-    // TODO completar
-    ra.exclude["read"]["read"] = false
-    ra.exclude["read"]["write"] = true
-    ra.exclude["write"]["read"] = true
-    ra.exclude["write"]["write"] = true
-    
-    return &ra
+func New(me int, usersFile string, operation string, resp chan Reply, pet chan Request) *RASharedDB {
+	messageTypes := []ms.Message{Request{}, Reply{}}
+	msgs := ms.New(me, usersFile, messageTypes)
+	ra := RASharedDB{vclock.New(), vclock.New(), 0, false, []bool{}, &msgs, make(chan bool), make(chan bool),
+		sync.Mutex{}, make(map[string]map[string]bool), operation, resp, pet}
+	// TODO completar
+	ra.exclude["read"]["read"] = false
+	ra.exclude["read"]["write"] = true
+	ra.exclude["write"]["read"] = true
+	ra.exclude["write"]["write"] = true
+
+	return &ra
 }
 
 //Pre: Verdad
 //Post: Realiza  el  PreProtocol  para el  algoritmo de
 //      Ricart-Agrawala Generalizado
-func (ra *RASharedDB) PreProtocol(){
-    // TODO completar
+func (ra *RASharedDB) PreProtocol() {
+
+	me := ra.ms.WhoSends()
+	ra.Mutex.Lock()
+
+	ra.ReqCS = true                                                 // Pide la sección crítica
+	ra.OurSeqNum.Set(strconv.Itoa(me), ra.HigSeqNum.LastUpdate()+1) // Actualizamos el reloj
+
+	ra.Mutex.Unlock()
+
+	ra.OutRepCnt = LE - 1 // Numero de respuestas que se esperan
+
+	// Mandamos solicitud a los demás nodos
+	for pid := 0; pid < LE; pid++ {
+		if pid != me {
+			ra.Mutex.Lock()
+			ra.ms.Send(pid+1, Request{ra.OurSeqNum, me, ra.operation})
+			ra.Mutex.Unlock()
+		}
+	}
+
+	// Esperamos respuesta de los demás nodos
+	<-ra.chrep
+
 }
 
 //Pre: Verdad
 //Post: Realiza  el  PostProtocol  para el  algoritmo de
 //      Ricart-Agrawala Generalizado
-func (ra *RASharedDB) PostProtocol(){
+func (ra *RASharedDB) PostProtocol() {
 
-    ra.ReqCS = false                    // cs_statei ← out;
-    
-    for pid := 0; pid <= LE; pid++ {    // Se recorren todos los procesos lector/escritor
-        
-        if ra.RepDefd[pid] {            // for each j ∈ perm_delayedi
-            
-            ra.Mutex.Lock()
-            ra.ms.Send(pid+1, Reply{})  // do send PERMISSION(i) to pj 
-            ra.Mutex.Unlock()
-            ra.RepDefd[pid] = false;    // perm_delayedi ← ∅
-        }
-    }  //end for
+	ra.ReqCS = false
+
+	for pid := 0; pid < LE; pid++ { // Se recorren todos los procesos lector/escritor
+
+		if ra.RepDefd[pid] { // for each j ∈ perm_delayedi
+
+			ra.RepDefd[pid] = false
+			ra.Mutex.Lock()
+			ra.ms.Send(pid+1, Reply{}) // Envia un reply al nodo pid+1
+			ra.Mutex.Unlock()
+		}
+	} //end for
 
 }
 
 // La función maneja la recepción de un mensaje REQUEST (k, j).
 // Actualiza el reloj local, verifica si se puede otorgar permiso y responde en consecuencia.
-func (ra *RASharedDB) request(){
-    // TODO completar
+func (ra *RASharedDB) request() {
+	for {
+		request := <-ra.reqt
+		var defer_it bool
+
+		ra.HigSeqNum.Merge(request.Clock) // Actualizamos relojes con el que hemos recibido
+
+		me := ra.ms.WhoSends()
+		him := request.Pid
+
+		myClock, myErr := ra.HigSeqNum.FindTicks(strconv.Itoa(me))
+		if !myErr {
+			log.Println("Error en la lectura del propio reloj")
+		}
+		hisClock, hisErr := ra.HigSeqNum.FindTicks(strconv.Itoa(him))
+		if !hisErr {
+			log.Println("Error en la lectura del reloj que manda el nodo")
+		}
+		ra.Mutex.Lock() // Consulta de variables compartidas
+		defer_it = ra.ReqCS && decidePriority(myClock, hisClock, me, him) && ra.exclude[ra.operation][request.Operation]
+		ra.Mutex.Unlock()
+
+		if defer_it {
+			ra.RepDefd[him-1] = true
+		} else {
+			ra.ms.Send(him, Reply{})
+		}
+	}
+}
+
+func decidePriority(myClock uint64, hisClock uint64, me int, him int) bool {
+	if myClock > hisClock {
+		return true
+	} else if myClock == hisClock {
+		return me < him
+	} else {
+		return false
+	}
+
 }
 
 // La función maneja la recepción de un mensaje PERMISSION(j).
 // Elimina j de la lista de esperas (waiting_fromi).
-func (ra *RASharedDB) permission(){
-    // TODO completar
+func (ra *RASharedDB) permission() {
+	for {
+		<-ra.repl
+		ra.OutRepCnt--
+		if ra.OutRepCnt == 0 {
+			ra.chrep <- true
+		}
+	}
+
 }
 
-func (ra *RASharedDB) Stop(){
-    ra.ms.Stop()
-    ra.done <- true
+func (ra *RASharedDB) Stop() {
+	ra.ms.Stop()
+	ra.done <- true
 }
