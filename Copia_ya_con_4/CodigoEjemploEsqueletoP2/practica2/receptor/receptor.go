@@ -53,18 +53,23 @@ func WaitForReply(chtxt chan bool, numEsperar int) {
 	}
 }
 
-func Receptor(msg *ms.MessageSystem, chreq chan ra.Request, chrep chan ra.Reply, chCheck chan bool, chtxt chan bool, file string) {
+func Receptor(msg *ms.MessageSystem, chreq chan ra.Request, chrep chan ra.Reply, chCheck chan bool, chtxt chan bool, file *gestorF.Fich) {
 	for {
 		mensaje := msg.Receive()
 		switch tipo := mensaje.(type) {
 		case ra.Request:
 			chreq <- tipo
 		case ra.Reply:
+			if tipo.Post {
+				log.Printf("El proceso %d ha recibido permiso postergado\n", tipo.Recibido)
+			} else {
+				log.Printf("El proceso %d ha recibido permiso \n", tipo.Recibido)
+			}
 			chrep <- tipo
 		case CheckPoint:
 			chCheck <- true
 		case Text:
-			gestorF.EscribirFichero(file, tipo.Text)
+			file.EscribirFichero(tipo.Text)
 			SendReplyToTxt(msg, tipo.Pid)
 		case TextReply:
 			chtxt <- true

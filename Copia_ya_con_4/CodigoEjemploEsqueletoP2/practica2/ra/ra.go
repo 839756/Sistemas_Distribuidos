@@ -29,7 +29,10 @@ type Request struct {
 	Operation string
 }
 
-type Reply struct{}
+type Reply struct {
+	Recibido int
+	Post     bool
+}
 
 type RASharedDB struct {
 	OurSeqNum vclock.VClock     // Numero de secuencia enviado del propio nodo
@@ -43,7 +46,7 @@ type RASharedDB struct {
 	Mutex     sync.Mutex // mutex para proteger concurrencia sobre las variables
 	// TODO: completar
 	exclude   map[string]map[string]bool // Matriz de exclusión formada por un mapa de mapas de booleanos
-	operation string                     // Operación que hace el nodo
+	Operation string                     // Operación que hace el nodo
 	repl      chan Reply
 	reqt      chan Request
 }
@@ -76,12 +79,12 @@ func New(msgs *ms.MessageSystem, me int, usersFile string, operation string, res
 func (ra *RASharedDB) PreProtocol() {
 
 	me := ra.ms.WhoSends()
+
+	log.Printf("Soy %d Intento entrar en sección critica\n", me)
 	ra.Mutex.Lock()
-
-	ra.ReqCS = true                                                 // Pide la sección crítica
-	ra.OurSeqNum.Set(strconv.Itoa(me), ra.HigSeqNum.LastUpdate()+1) // Actualizamos el reloj
-	ra.HigSeqNum.Set(strconv.Itoa(me), ra.OurSeqNum[strconv.Itoa(me)])
-
+	ra.ReqCS = true                                                      // Pide la sección crítica
+	ra.OurSeqNum.Set(strconv.Itoa(me), ra.HigSeqNum[strconv.Itoa(me)]+1) // Actualizamos el reloj
+	ra.OurSeqNum.Merge(ra.HigSeqNum)
 	ra.Mutex.Unlock()
 
 	ra.OutRepCnt = LE - 1 // Numero de respuestas que se esperan
@@ -89,16 +92,13 @@ func (ra *RASharedDB) PreProtocol() {
 	// Mandamos solicitud a los demás nodos
 	for pid := 1; pid <= LE; pid++ {
 		if pid != me {
-
-			ra.Mutex.Lock()
-			ra.ms.Send(pid, Request{ra.OurSeqNum, me, ra.operation})
-			ra.Mutex.Unlock()
+			log.Printf("Solicitando permiso a %d", pid)
+			ra.ms.Send(pid, Request{ra.OurSeqNum, me, ra.Operation})
 		}
 	}
 
 	// Esperamos respuesta de los demás nodos
 	<-ra.chrep
-
 }
 
 //Pre: Verdad
@@ -106,19 +106,31 @@ func (ra *RASharedDB) PreProtocol() {
 //      Ricart-Agrawala Generalizado
 func (ra *RASharedDB) PostProtocol() {
 
+	ra.Mutex.Lock()
 	ra.ReqCS = false
+	ra.Mutex.Unlock()
 
 	for pid := 0; pid < LE; pid++ { // Se recorren todos los procesos lector/escritor
 
 		if ra.RepDefd[pid] { // for each j ∈ perm_delayedi
 
+			log.Printf("Se envía reply postergado a %d\n", pid)
 			ra.RepDefd[pid] = false
 			ra.Mutex.Lock()
-			ra.ms.Send(pid+1, Reply{}) // Envia un reply al nodo pid+1
+			ra.ms.Send(pid+1, Reply{ra.ms.WhoSends(), true}) // Envia un reply al nodo pid+1
 			ra.Mutex.Unlock()
 		}
+
 	} //end for
 
+}
+
+func max(value1 uint64, value2 uint64) uint64 {
+	if value1 > value2 {
+		return value1
+	} else {
+		return value2
+	}
 }
 
 // La función maneja la recepción de un mensaje REQUEST (k, j).
@@ -127,13 +139,15 @@ func (ra *RASharedDB) request() {
 	for {
 		request := <-ra.reqt
 		var defer_it bool
-
-		ra.HigSeqNum.Merge(request.Clock) // Actualizamos relojes con el que hemos recibido
-
 		me := ra.ms.WhoSends()
 		him := request.Pid
 
-		myClock, myErr := ra.HigSeqNum.FindTicks(strconv.Itoa(me))
+		ra.Mutex.Lock()
+		ra.HigSeqNum.Merge(request.Clock) // Actualizamos relojes con el que hemos recibido
+		ra.HigSeqNum.Set(strconv.Itoa(me), max(ra.HigSeqNum[strconv.Itoa(me)], ra.HigSeqNum[strconv.Itoa(him)]))
+		ra.Mutex.Unlock()
+
+		myClock, myErr := ra.OurSeqNum.FindTicks(strconv.Itoa(me))
 		if !myErr {
 			log.Println("Error en la lectura del propio reloj")
 		}
@@ -143,31 +157,36 @@ func (ra *RASharedDB) request() {
 		}
 
 		ra.Mutex.Lock() // Consulta de variables compartidas
-		defer_it = ra.ReqCS && decidePriority(myClock, hisClock, me, him) && ra.exclude[ra.operation][request.Operation]
+		defer_it = ra.ReqCS && decidePriority(myClock, hisClock, me, him) && ra.exclude[ra.Operation][request.Operation]
 		ra.Mutex.Unlock()
 
 		// Comporbamos lo relojes
-		log.Printf("Mi reloj es %d y el de la petición es %d y mi petición de sección critica es %t y el permiso es %t\n", myClock, hisClock, ra.ReqCS, defer_it)
+		log.Printf("Mi reloj es %d y el de la petición ID: %d es %d.\n Y mi petición de sección critica es %t, la prioridad %t y la exclusion %t, el resultado final es %t\n", myClock, him, hisClock, ra.ReqCS, decidePriority(myClock, hisClock, me, him), ra.exclude[ra.Operation][request.Operation], defer_it)
+
+		//log.Printf("La operación del nodo %s y la solicitante %s es %t\n", ra.Operation, request.Operation, ra.exclude[ra.Operation][request.Operation])
 
 		if defer_it {
 			log.Println("Permiso postergado")
+			// ra.Mutex.Lock()
 			ra.RepDefd[him-1] = true
+			// ra.Mutex.Unlock()
 		} else {
 			log.Println("Permiso concedido")
-			ra.ms.Send(him, Reply{})
+			ra.Mutex.Lock()
+			ra.ms.Send(him, Reply{me, false})
+			ra.Mutex.Unlock()
 		}
 	}
 }
 
 func decidePriority(myClock uint64, hisClock uint64, me int, him int) bool {
-	if myClock > hisClock {
+	if myClock < hisClock {
 		return true
 	} else if myClock == hisClock {
 		return me < him
 	} else {
 		return false
 	}
-
 }
 
 // La función maneja la recepción de un mensaje PERMISSION(j).
@@ -175,7 +194,10 @@ func decidePriority(myClock uint64, hisClock uint64, me int, him int) bool {
 func (ra *RASharedDB) permission() {
 	for {
 		<-ra.repl
+		// ra.Mutex.Lock()
 		ra.OutRepCnt--
+		// ra.Mutex.Unlock()
+		// log.Printf("Permiso recibido faltan %d\n", ra.OutRepCnt)
 		if ra.OutRepCnt == 0 {
 			ra.chrep <- true
 		}

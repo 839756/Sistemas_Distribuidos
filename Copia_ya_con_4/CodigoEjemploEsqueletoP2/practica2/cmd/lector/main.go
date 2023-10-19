@@ -21,23 +21,16 @@ import (
 	"sync"
 )
 
-func lector(fichero string, ricart *ra.RASharedDB, wait *sync.WaitGroup) {
+func lector(fichero string, ricart *ra.RASharedDB, wait *sync.WaitGroup, file *gestorF.Fich) {
 	defer wait.Done()
 
 	for i := 0; i < 10; i++ {
 		ricart.PreProtocol()
 		//Leer en el fichero
-		gestorF.LeerFichero(fichero)
+		file.LeerFichero()
 
 		ricart.PostProtocol()
 	}
-	/*
-		// Crea un temporizador para esperar 5 segundos
-		duration := 5 * time.Second
-		timer := time.NewTimer(duration)
-
-		// Espera los 5 segundos para terminar la ejecucion y que se actualice todo
-		<-timer.C*/
 }
 
 func main() {
@@ -48,7 +41,7 @@ func main() {
 	log.Printf("Lector con pid %d en marcha\n", me)
 	// Se crea la copia del fichero
 	fichero := "fichero_" + myPid + ".txt"
-	gestorF.CrearFichero(fichero)
+	file := gestorF.CrearFichero(fichero)
 
 	usersFile := "../../ms/users.txt" // Fichero con dirección de las demás máquinas
 
@@ -61,7 +54,7 @@ func main() {
 	chCheck := make(chan bool)
 	chtext := make(chan bool)
 	// Iniciamos el receptor de mensaje
-	go receptor.Receptor(&message, chReq, chRep, chCheck, chtext, fichero)
+	go receptor.Receptor(&message, chReq, chRep, chCheck, chtext, file)
 	log.Println("Receptor iniciado")
 
 	ricart := ra.New(&message, me, usersFile, "read", chRep, chReq)
@@ -74,7 +67,7 @@ func main() {
 
 	var wait sync.WaitGroup
 	wait.Add(1)
-	go lector(fichero, ricart, &wait) //PONER FEEDBACK DE LO LEIDO
+	go lector(fichero, ricart, &wait, file)
 	wait.Wait()
 	// Terminar cuando los demás procesos terminen también
 	message.Send(ra.LE+1, receptor.CheckPoint{})

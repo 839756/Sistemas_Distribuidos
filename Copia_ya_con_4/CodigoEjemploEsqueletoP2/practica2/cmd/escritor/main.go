@@ -21,14 +21,14 @@ import (
 	"sync"
 )
 
-func escritor(fichero string, ricart *ra.RASharedDB, message *ms.MessageSystem, me int, wait *sync.WaitGroup, chtxt chan bool) {
+func escritor(fichero string, ricart *ra.RASharedDB, message *ms.MessageSystem, me int, wait *sync.WaitGroup, chtxt chan bool, file *gestorF.Fich) {
 	defer wait.Done()
 
 	for j := 0; j < 10; j++ {
 		ricart.PreProtocol()
 		log.Printf("Soy ID: %d y voy a enviar %d", me, j)
 		//Escribimos en el fichero
-		gestorF.EscribirFichero(fichero, strconv.Itoa(j)+" ")
+		file.EscribirFichero(strconv.Itoa(j) + " ")
 		//Enviamos un mensaje para que se actualicen los ficheros de los demás procesos
 		receptor.SendText(message, j, me)
 
@@ -46,7 +46,7 @@ func main() {
 	log.Printf("Escritor con pid %d en marcha\n", me)
 	// Se crea la copia del fichero
 	fichero := "fichero_" + myPid + ".txt"
-	gestorF.CrearFichero(fichero)
+	file := gestorF.CrearFichero(fichero)
 
 	usersFile := "../../ms/users.txt" // Fichero con dirección de las demás máquinas
 
@@ -59,7 +59,7 @@ func main() {
 	chCheck := make(chan bool)
 	chtxt := make(chan bool)
 	// Iniciamos el receptor de mensaje
-	go receptor.Receptor(&message, chReq, chRep, chCheck, chtxt, fichero)
+	go receptor.Receptor(&message, chReq, chRep, chCheck, chtxt, file)
 	log.Println("Receptor iniciado")
 
 	ricart := ra.New(&message, me, usersFile, "write", chRep, chReq)
@@ -68,7 +68,7 @@ func main() {
 	<-chCheck
 	var wait sync.WaitGroup
 	wait.Add(1)
-	go escritor(fichero, ricart, &message, me, &wait, chtxt)
+	go escritor(fichero, ricart, &message, me, &wait, chtxt, file)
 	wait.Wait()
 	// Terminar cuando los demás procesos terminen también
 	message.Send(ra.LE+1, receptor.CheckPoint{})
