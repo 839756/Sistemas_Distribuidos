@@ -22,7 +22,7 @@
     sleep 4
 
     # Comparar el contenido de fichero_1.txt y fichero_2.txt
-    if cmp -s "cmd/lector/fichero_1.txt" "cmd/escritor/fichero_3.txt" && cmp -s "cmd/lector/fichero_2.txt" "cmd/escritor/fichero_4.txt"; then
+    if cmp -s "cmd/lector/fichero_1.txt" "cmd/escritor/fichero_2.txt" && cmp -s "cmd/lector/fichero_2.txt" "cmd/escritor/fichero_3.txt" && cmp -s "cmd/lector/fichero_3.txt" "cmd/escritor/fichero_4.txt"; then
         echo "Los archivos son iguales."
     else
         echo "Los archivos son diferentes."

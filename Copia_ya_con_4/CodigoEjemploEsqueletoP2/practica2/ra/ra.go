@@ -78,7 +78,8 @@ func (ra *RASharedDB) PreProtocol() {
 	me := ra.ms.WhoSends()
 	ra.Mutex.Lock()
 
-	ra.ReqCS = true                                                 // Pide la sección crítica
+	ra.ReqCS = true // Pide la sección crítica
+	//sra.OurSeqNum.Merge(ra.HigSeqNum)
 	ra.OurSeqNum.Set(strconv.Itoa(me), ra.HigSeqNum.LastUpdate()+1) // Actualizamos el reloj
 
 	ra.Mutex.Unlock()
@@ -139,6 +140,10 @@ func (ra *RASharedDB) request() {
 		if !hisErr {
 			log.Println("Error en la lectura del reloj que manda el nodo")
 		}
+
+		// Comprobamos relojes
+		log.Printf("Mi reloj es %d y el de la petición es %d y mi petición de sección critica es %t", myClock, hisClock, ra.ReqCS)
+
 		ra.Mutex.Lock() // Consulta de variables compartidas
 		defer_it = ra.ReqCS && decidePriority(myClock, hisClock, me, him) && ra.exclude[ra.operation][request.Operation]
 		ra.Mutex.Unlock()
