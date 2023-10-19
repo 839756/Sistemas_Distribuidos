@@ -30,11 +30,6 @@ func escritor(fichero string, ricart *ra.RASharedDB, message *ms.MessageSystem, 
 		//Escribimos en el fichero
 		gestorF.EscribirFichero(fichero, strconv.Itoa(j)+" ")
 		//Enviamos un mensaje para que se actualicen los ficheros de los demás procesos
-		/*for i := 1; i <= ra.LE; i++ {
-			if i != me {
-				message.Send(i, receptor.Text{Text: strconv.Itoa(j) + " "})
-			}
-		}*/
 		receptor.SendText(message, j, me)
 
 		receptor.WaitForReply(chtxt, ra.LE-1)
