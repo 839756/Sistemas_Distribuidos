@@ -24,7 +24,7 @@ import (
 func lector(fichero string, ricart *ra.RASharedDB, wait *sync.WaitGroup, file *gestorF.Fich) {
 	defer wait.Done()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		ricart.PreProtocol()
 		//Leer en el fichero
 		file.LeerFichero()

@@ -13,13 +13,13 @@ sleep 2
 IPS=("192.168.3.9" "192.168.3.10" "192.168.3.11" "192.168.3.12")
 
 # Iniciar el programa lector en 192.168.3.9:29120
-ssh -n "$USER${IPS[0]}" "cd ~/practica2/cmd/lector; go run main.go 1" &
+ssh -n "$USER@${IPS[0]}" "cd ~/practica2/cmd/lector; go run main.go 1" &
 
 # Iniciar el programa lector en 192.168.3.10:29120
-ssh -n "$USER${IPS[1]}" "cd ~/practica2/cmd/lector; go run main.go 2" &
+ssh -n "$USER@${IPS[1]}" "cd ~/practica2/cmd/lector; go run main.go 2" &
 
 # Iniciar el programa escritor en 192.168.3.11:29120
-ssh -n "$USER${IPS[2]}" "cd ~/practica2/cmd/escritor; go run main.go 3" &
+ssh -n "$USER@${IPS[2]}" "cd ~/practica2/cmd/escritor; go run main.go 3" &
 
 # Iniciar el programa escritor en 192.168.3.12:29120
-ssh -n "$USER${IPS[3]}" "cd ~/practica2/cmd/escritor; go run main.go 4" &
+ssh -n "$USER@${IPS[3]}" "cd ~/practica2/cmd/escritor; go run main.go 4" &
