@@ -24,6 +24,8 @@ for ip in "${remote_ips[@]}"; do
   fi
 done
 
+port_to_check=29121
+
 # Utiliza SSH para conectarte a la máquina remota y ejecutar el comando lsof
   ssh "$remote_user@192.168.3.9" "lsof -i :$port_to_check" > /tmp/processes_to_kill
   # Verifica si se encontraron procesos en el puerto
