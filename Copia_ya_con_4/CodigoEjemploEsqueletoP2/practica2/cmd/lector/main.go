@@ -24,10 +24,11 @@ import (
 func lector(fichero string, ricart *ra.RASharedDB, wait *sync.WaitGroup, file *gestorF.Fich) {
 	defer wait.Done()
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		ricart.PreProtocol()
 		//Leer en el fichero
-		file.LeerFichero()
+		contenido, _ := file.LeerFichero()
+		log.Printf("He leido %s\n", contenido)
 
 		ricart.PostProtocol()
 	}
@@ -55,15 +56,15 @@ func main() {
 	chtext := make(chan bool)
 	// Iniciamos el receptor de mensaje
 	go receptor.Receptor(&message, chReq, chRep, chCheck, chtext, file)
-	log.Println("Receptor iniciado")
+	// log.Println("Receptor iniciado")
 
 	ricart := ra.New(&message, me, usersFile, "read", chRep, chReq)
 
 	message.Send(ra.LE+1, receptor.CheckPoint{})
 
-	log.Println("Esperando barrera")
+	// log.Println("Esperando barrera")
 	<-chCheck
-	log.Println("Barrera pasada")
+	// log.Println("Barrera pasada")
 
 	var wait sync.WaitGroup
 	wait.Add(1)

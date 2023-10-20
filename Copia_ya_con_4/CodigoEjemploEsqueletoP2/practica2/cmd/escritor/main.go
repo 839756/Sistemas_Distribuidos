@@ -24,7 +24,7 @@ import (
 func escritor(fichero string, ricart *ra.RASharedDB, message *ms.MessageSystem, me int, wait *sync.WaitGroup, chtxt chan bool, file *gestorF.Fich) {
 	defer wait.Done()
 
-	for j := 0; j < 100; j++ {
+	for j := 0; j < 10; j++ {
 		ricart.PreProtocol()
 		log.Printf("Soy ID: %d y voy a enviar %d", me, j)
 		//Escribimos en el fichero
@@ -60,7 +60,7 @@ func main() {
 	chtxt := make(chan bool)
 	// Iniciamos el receptor de mensaje
 	go receptor.Receptor(&message, chReq, chRep, chCheck, chtxt, file)
-	log.Println("Receptor iniciado")
+	// log.Println("Receptor iniciado")
 
 	ricart := ra.New(&message, me, usersFile, "write", chRep, chReq)
 

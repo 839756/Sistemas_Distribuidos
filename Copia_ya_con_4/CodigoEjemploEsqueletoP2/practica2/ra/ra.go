@@ -92,7 +92,7 @@ func (ra *RASharedDB) PreProtocol() {
 	// Mandamos solicitud a los demás nodos
 	for pid := 1; pid <= LE; pid++ {
 		if pid != me {
-			log.Printf("Solicitando permiso a %d", pid)
+			// log.Printf("Solicitando permiso a %d", pid)
 			ra.ms.Send(pid, Request{ra.OurSeqNum, me, ra.Operation})
 		}
 	}
@@ -114,7 +114,7 @@ func (ra *RASharedDB) PostProtocol() {
 
 		if ra.RepDefd[pid] { // for each j ∈ perm_delayedi
 
-			log.Printf("Se envía reply postergado a %d\n", pid)
+			// log.Printf("Se envía reply postergado a %d\n", pid)
 			ra.RepDefd[pid] = false
 			ra.Mutex.Lock()
 			ra.ms.Send(pid+1, Reply{ra.ms.WhoSends(), true}) // Envia un reply al nodo pid+1
