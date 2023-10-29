@@ -11,6 +11,7 @@
 package receptor
 
 import (
+	"log"
 	"practica2/gestorF"
 	"practica2/ms"
 	"practica2/ra"
@@ -29,30 +30,41 @@ type TextReply struct{}
 // Función que actualiza los ficheros de los demás nodos
 func SendText(message *ms.MessageSystem, numMessage int, me int) {
 	mensaje := strconv.Itoa(numMessage) + " "
+	log.Printf("Envío para que copien %s\n", mensaje)
 	for i := 1; i <= ra.LE; i++ {
 		if i != me {
+
 			message.Send(i, Text{mensaje, me})
 		}
 	}
 }
 
+// Responde al que ha enviado el texto que lo ha copiado de forma satisfactoria
 func SendReplyToTxt(message *ms.MessageSystem, to int) {
+	log.Printf("Hay que mandar una respueta a %d\n", to)
 	message.Send(to, TextReply{})
+	log.Printf("Se ha mandado la respuesta a %d\n", to)
 }
 
-func WaitForReply(chTxtRpl chan bool, numEsperar int) {
+// Espera a que los demás nodos hayan copiado.
+func WaitForReply(chtxt chan bool, numEsperar int) {
 	for i := numEsperar; i > 0; i-- {
-		<-chTxtRpl
+		<-chtxt
 	}
 }
 
-func Receptor(msg *ms.MessageSystem, chreq chan ra.Request, chrep chan ra.Reply, chCheck chan bool, chTxtRpl chan bool, file *gestorF.Fich) {
+func Receptor(msg *ms.MessageSystem, chreq chan ra.Request, chrep chan ra.Reply, chCheck chan bool, chtxt chan bool, file *gestorF.Fich) {
 	for {
 		mensaje := msg.Receive()
 		switch tipo := mensaje.(type) {
 		case ra.Request:
 			chreq <- tipo
 		case ra.Reply:
+			if tipo.Post {
+				log.Printf("El proceso %d ha recibido permiso postergado\n", tipo.Recibido)
+			} else {
+				log.Printf("El proceso %d ha recibido permiso \n", tipo.Recibido)
+			}
 			chrep <- tipo
 		case CheckPoint:
 			chCheck <- true
@@ -60,7 +72,7 @@ func Receptor(msg *ms.MessageSystem, chreq chan ra.Request, chrep chan ra.Reply,
 			file.EscribirFichero(tipo.Text)
 			SendReplyToTxt(msg, tipo.Pid)
 		case TextReply:
-			chTxtRpl <- true
+			chtxt <- true
 		}
 	}
 }

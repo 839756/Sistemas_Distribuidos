@@ -19,34 +19,23 @@ import (
 	"practica2/receptor"
 	"strconv"
 	"sync"
-	"time"
 )
 
-func escritor(file *gestorF.Fich, ricart *ra.RASharedDB, message *ms.MessageSystem, me int, wait *sync.WaitGroup, chRpl chan bool) {
+func escritor(fichero string, ricart *ra.RASharedDB, message *ms.MessageSystem, me int, wait *sync.WaitGroup, chtxt chan bool, file *gestorF.Fich) {
 	defer wait.Done()
 
-	for j := 0; j < 100; j++ {
+	for j := 0; j < 10; j++ {
 		ricart.PreProtocol()
-		// Escribimos en el fichero
-
+		log.Printf("Soy ID: %d y voy a enviar %d", me, j)
+		//Escribimos en el fichero
 		file.EscribirFichero(strconv.Itoa(j) + " ")
-
-		log.Printf("Contenido escrito por el proceso %d: %d\n", me, j)
-		// Enviamos un mensaje para que se actualicen los ficheros de los demás procesos
+		//Enviamos un mensaje para que se actualicen los ficheros de los demás procesos
 		receptor.SendText(message, j, me)
-		// Espera a recibir todos los
-		// receptor.WaitForReply(chRpl, ra.LE-1)
-		for i := ra.LE - 1; i > 0; i-- {
-			<-chRpl
-		}
+
+		receptor.WaitForReply(chtxt, ra.LE-1)
+		log.Println("Todos han recibido mi copia")
 		ricart.PostProtocol()
 	}
-	// Crea un temporizador para esperar segundos
-	duration := 5 * time.Second
-	timer := time.NewTimer(duration)
-
-	// Espera los  segundos para terminar la ejecucion y que se actualice todo
-	<-timer.C
 }
 
 func main() {
@@ -61,24 +50,27 @@ func main() {
 
 	usersFile := "../../ms/users.txt" // Fichero con dirección de las demás máquinas
 
-	tipoDeMensajes := []ms.Message{ra.Request{}, ra.Reply{}, receptor.CheckPoint{}, receptor.Text{}}
+	tipoDeMensajes := []ms.Message{ra.Request{}, ra.Reply{}, receptor.CheckPoint{}, receptor.Text{}, receptor.TextReply{}}
 
 	message := ms.New(me, usersFile, tipoDeMensajes)
 	// Creamos los canales para comunicarse con el algoritmo RA
 	chReq := make(chan ra.Request)
 	chRep := make(chan ra.Reply)
 	chCheck := make(chan bool)
-	chTxtRepl := make(chan bool)
+	chtxt := make(chan bool)
 	// Iniciamos el receptor de mensaje
-	ricart := ra.New(&message, me, usersFile, "write", chRep, chReq)
+	go receptor.Receptor(&message, chReq, chRep, chCheck, chtxt, file)
+	// log.Println("Receptor iniciado")
 
-	go receptor.Receptor(&message, chReq, chRep, chCheck, chTxtRepl, file)
-	log.Println("Receptor iniciado")
+	ricart := ra.New(&message, me, usersFile, "write", chRep, chReq)
 
 	message.Send(ra.LE+1, receptor.CheckPoint{})
 	<-chCheck
 	var wait sync.WaitGroup
 	wait.Add(1)
-	go escritor(file, ricart, &message, me, &wait, chTxtRepl)
+	go escritor(fichero, ricart, &message, me, &wait, chtxt, file)
 	wait.Wait()
+	// Terminar cuando los demás procesos terminen también
+	message.Send(ra.LE+1, receptor.CheckPoint{})
+	<-chCheck
 }

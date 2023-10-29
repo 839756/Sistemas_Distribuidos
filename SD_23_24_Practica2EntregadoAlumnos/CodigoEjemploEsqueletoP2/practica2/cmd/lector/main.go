@@ -19,25 +19,19 @@ import (
 	"practica2/receptor"
 	"strconv"
 	"sync"
-	"time"
 )
 
-func lector(file *gestorF.Fich, ricart *ra.RASharedDB, wait *sync.WaitGroup) {
+func lector(fichero string, ricart *ra.RASharedDB, wait *sync.WaitGroup, file *gestorF.Fich) {
 	defer wait.Done()
 
-	for j := 0; j < 100; j++ {
+	for i := 0; i < 10; i++ {
 		ricart.PreProtocol()
 		//Leer en el fichero
 		contenido, _ := file.LeerFichero()
-		log.Printf("Contenido leido: %s\n", contenido)
+		log.Printf("He leido %s\n", contenido)
+
 		ricart.PostProtocol()
 	}
-	// Crea un temporizador para esperar 5 segundos
-	duration := 5 * time.Second
-	timer := time.NewTimer(duration)
-
-	// Espera los 5 segundos para terminar la ejecucion y que se actualice todo
-	<-timer.C
 }
 
 func main() {
@@ -52,29 +46,31 @@ func main() {
 
 	usersFile := "../../ms/users.txt" // Fichero con dirección de las demás máquinas
 
-	tipoDeMensajes := []ms.Message{ra.Request{}, ra.Reply{}, receptor.CheckPoint{}, receptor.Text{}}
+	tipoDeMensajes := []ms.Message{ra.Request{}, ra.Reply{}, receptor.CheckPoint{}, receptor.Text{}, receptor.TextReply{}}
 
 	message := ms.New(me, usersFile, tipoDeMensajes)
 	// Creamos los canales para comunicarse con el algoritmo RA
 	chReq := make(chan ra.Request)
 	chRep := make(chan ra.Reply)
 	chCheck := make(chan bool)
-	chTxtRepl := make(chan bool)
-
+	chtext := make(chan bool)
 	// Iniciamos el receptor de mensaje
-	go receptor.Receptor(&message, chReq, chRep, chCheck, chTxtRepl, file)
-	log.Println("Receptor iniciado")
+	go receptor.Receptor(&message, chReq, chRep, chCheck, chtext, file)
+	// log.Println("Receptor iniciado")
 
 	ricart := ra.New(&message, me, usersFile, "read", chRep, chReq)
 
 	message.Send(ra.LE+1, receptor.CheckPoint{})
 
-	log.Println("Esperando barrera")
+	// log.Println("Esperando barrera")
 	<-chCheck
-	log.Println("Barrera pasada")
+	// log.Println("Barrera pasada")
 
 	var wait sync.WaitGroup
 	wait.Add(1)
-	go lector(file, ricart, &wait)
+	go lector(fichero, ricart, &wait, file)
 	wait.Wait()
+	// Terminar cuando los demás procesos terminen también
+	message.Send(ra.LE+1, receptor.CheckPoint{})
+	<-chCheck
 }

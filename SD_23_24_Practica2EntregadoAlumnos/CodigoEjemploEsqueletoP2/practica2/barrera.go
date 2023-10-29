@@ -31,4 +31,14 @@ func main() {
 	for i := 1; i <= ra.LE; i++ {
 		msg.Send(i, receptor.CheckPoint{})
 	}
+
+	for i := 1; i <= ra.LE; i++ {
+		_ = msg.Receive()
+		log.Printf("Un proceso acabado, faltan %d\n", ra.LE-i)
+	}
+	log.Println("Todos los procesos han terminado")
+	for i := 1; i <= ra.LE; i++ {
+		msg.Send(i, receptor.CheckPoint{})
+	}
+
 }

@@ -37,8 +37,8 @@ func CrearFichero(nombreArchivo string) *Fich {
 //La operacion LeerFichero devuelve el contenido completo del fichero de texto
 func (file *Fich) LeerFichero() (string, error) {
 	// Lectura en exlusión mutua
-	//file.Mutex.Lock()
-	//defer file.Mutex.Unlock()
+	file.Mutex.Lock()
+	defer file.Mutex.Unlock()
 	// Se lee el contenido del archivo especificado por "nombreArchivo".
 	contenido, err := ioutil.ReadFile(file.nombre)
 
@@ -58,8 +58,8 @@ func (file *Fich) LeerFichero() (string, error) {
 func (file *Fich) EscribirFichero(fragmento string) {
 
 	// Edición en exclusión mutua
-	//file.Mutex.Lock()
-	//defer file.Mutex.Unlock()
+	file.Mutex.Lock()
+	defer file.Mutex.Unlock()
 	// Abrir el archivo en modo escritura, anexando al final o creando si no existe, con persimos
 	// de escritura y lectura para el propietario y el grupo.
 	archivo, err := os.OpenFile(file.nombre, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0664)
