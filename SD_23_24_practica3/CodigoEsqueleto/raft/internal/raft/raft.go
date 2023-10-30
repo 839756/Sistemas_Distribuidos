@@ -254,8 +254,9 @@ func (nr *NodoRaft) SometerOperacionRaft(operacion TipoOperacion,
 // Nombres de campos deben comenzar con letra mayuscula !
 //
 type ArgsPeticionVoto struct {
-	Term         int // Mandato del candidato
-	CandidateId  int // Candidato solicitando voto
+	Term        int // Mandato del candidato
+	CandidateId int // Candidato solicitando voto
+	// Incluye para la practica 5
 	LastLogIndex int
 	LastLogTerm  int
 }
@@ -278,8 +279,7 @@ func (nr *NodoRaft) PedirVoto(peticion *ArgsPeticionVoto,
 	reply *RespuestaPeticionVoto) error {
 
 	// Recibir respuesta
-	if peticion.Term <= nr.currentTerm {
-
+	if peticion.Term < nr.currentTerm {
 		reply.VoteGranted = false
 		reply.Term = nr.currentTerm
 	} else if (nr.voteFor == IntNOINICIALIZADO ||
