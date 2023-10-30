@@ -75,6 +75,8 @@ type NodoRaft struct {
 	Nodos   []rpctimeout.HostPort
 	Yo      int // indice de este nodos en campo array "nodos"
 	IdLider int
+	estado  string //El nodo podra ser seguidor, candidato o lider
+
 	// Utilización opcional de este logger para depuración
 	// Cada nodo Raft tiene su propio registro de trazas (logs)
 	Logger *log.Logger
@@ -266,23 +268,38 @@ type ArgsPeticionVoto struct {
 //
 //
 type RespuestaPeticionVoto struct {
-	Term        int // Mandato actual, los candidatos lo actualizan
-	VoteGranted int // Cuando esta a true significa que el candidato ha recibido mi voto
+	Term        int  // Mandato actual, los candidatos lo actualizan
+	VoteGranted bool // true significa que el candidato ha recibido mi voto
 }
 
 // Metodo para RPC PedirVoto
 //
 func (nr *NodoRaft) PedirVoto(peticion *ArgsPeticionVoto,
 	reply *RespuestaPeticionVoto) error {
-	// Vuestro codigo aqui
+
+	// Recibir respuesta
+	if peticion.Term <= nr.currentTerm {
+
+		reply.VoteGranted = false
+		reply.Term = nr.currentTerm
+	} else if (nr.voteFor == IntNOINICIALIZADO ||
+		nr.voteFor == peticion.CandidateId) &&
+		peticion.LastLogIndex >= nr.lastApplied {
+
+		nr.voteFor = peticion.CandidateId
+		reply.VoteGranted = true
+		reply.Term = nr.currentTerm
+	}
+
+	// *Responder al canditado*
 
 	return nil
 }
 
-type Entry struct {
-	Index     int
-	Term      int
-	Operacion TipoOperacion
+type Entrada struct {
+	Index int
+	Term  int
+	Op    TipoOperacion
 }
 
 type ArgAppendEntries struct {
@@ -290,7 +307,7 @@ type ArgAppendEntries struct {
 	LeaderId     int // Para que el seguidor pueda redirigir a los clientes
 	PrevLogIndex int
 	PrevLogTerm  int
-	Entries      []Entry
+	Entries      []Entrada
 	LeaderCommit int
 }
 
