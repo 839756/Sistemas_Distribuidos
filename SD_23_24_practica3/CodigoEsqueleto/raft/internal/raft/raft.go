@@ -29,6 +29,7 @@ import (
 	"os"
 
 	//"crypto/rand"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -83,7 +84,7 @@ type NodoRaft struct {
 	Yo      int // indice de este nodos en campo array "nodos"
 	IdLider int
 	estado  string //El nodo podra ser seguidor, candidato o lider
-	votos   int    //votos recibidos
+	votos   int    //votos recibidos <---------------------------- Quitar
 
 	// Utilización opcional de este logger para depuración
 	// Cada nodo Raft tiene su propio registro de trazas (logs)
@@ -102,6 +103,34 @@ type NodoRaft struct {
 
 	canalLider    chan bool //Indicativo que es lider
 	canalSeguidor chan bool //Indicativo que es seguidor
+	pulsacion
+}
+
+func tiempoEsperaAleatorio() time.Duration {
+	// Seed para generar números realmente aleatorios
+	rand.Seed(time.Now().UnixNano())
+
+	// Generar un número aleatorio entre 200 y 1000
+	return time.Duration(rand.Intn(801)+200) * time.Millisecond
+}
+
+func maquinaEstadosNodo(nr *NodoRaft) {
+	for {
+		if nr.estado == "seguidor" {
+			select {
+			case
+
+			case <-time.After(tiempoEsperaAleatorio()):
+				nr.IdLider = -1
+				nr.estado = "candidato"
+			}
+
+		} else if nr.estado == "candidato" {
+
+		} else if nr.estado == "lider" {
+
+		}
+	}
 }
 
 // Creacion de un nuevo nodo de eleccion
@@ -213,11 +242,14 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	bool, int, string) {
 	indice := -1
 	mandato := -1
-	EsLider := false
+	EsLider := nr.Yo == nr.IdLider
 	idLider := -1
 	valorADevolver := ""
 
-	// Vuestro codigo aqui
+	if EsLider {
+		indice = nr.commitIndex
+		mandato = nr.currentTerm
+	}
 
 	return indice, mandato, EsLider, idLider, valorADevolver
 }
@@ -340,8 +372,11 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 		results.Success = false
 	}
 
-	if 0 == 0 {
-		// Comporbar que no hay conflicto en las entradas  <----------------------------------------------------------
+	newLogIndex := args.PrevLogIndex + 1
+
+	if len(nr.log) > args.PrevLogIndex &&
+		nr.log[newLogIndex].Term != args.Entries[0].Term {
+		nr.log = nr.log[:args.PrevLogIndex]
 	}
 
 	nr.log = append(nr.log, args.Entries...)
