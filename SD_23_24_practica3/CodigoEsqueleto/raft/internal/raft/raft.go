@@ -103,7 +103,7 @@ type NodoRaft struct {
 
 	canalLider    chan bool //Indicativo que es lider
 	canalSeguidor chan bool //Indicativo que es seguidor
-	pulsacion
+	pulsacion 	  chan bool //Pulsaciones que da el lider para indicar que esta vivo
 }
 
 func tiempoEsperaAleatorio() time.Duration {
@@ -118,15 +118,17 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 	for {
 		if nr.estado == "seguidor" {
 			select {
-			case
-
+			case <-nr.pulsacion:
+				nr.estado = "seguidor"
 			case <-time.After(tiempoEsperaAleatorio()):
 				nr.IdLider = -1
 				nr.estado = "candidato"
 			}
-
 		} else if nr.estado == "candidato" {
+			select{
 
+
+			}
 		} else if nr.estado == "lider" {
 
 		}
@@ -161,6 +163,7 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	nr.lastApplied = 0
 	nr.canalLider = make(chan bool)
 	nr.canalSeguidor = make(chan bool)
+	nr.pulsacion = make(chan bool)
 
 	if kEnableDebugLogs {
 		nombreNodo := nodos[yo].Host() + "_" + nodos[yo].Port()
@@ -450,6 +453,18 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 
 	} else {
 		return false
+	}
+}
+
+func pedirVotacion (nr *NodoRaft){
+	var respuesta RespuestaPeticionVoto
+
+	for i:=0; i < len(nr.Nodos); i++ {
+		if nr.Yo != i{
+			go nr.enviarPeticionVoto(i, 
+				&ArgsPeticionVoto{nr.CurrentTerm, nr.Yo}, &respuesta)
+		}
+
 	}
 
 }
