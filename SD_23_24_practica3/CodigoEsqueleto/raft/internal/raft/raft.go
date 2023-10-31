@@ -103,7 +103,7 @@ type NodoRaft struct {
 
 	canalLider    chan bool //Indicativo que es lider
 	canalSeguidor chan bool //Indicativo que es seguidor
-	pulsacion 	  chan bool //Pulsaciones que da el lider para indicar que esta vivo
+	pulsacion     chan bool //Pulsaciones que da el lider para indicar que esta vivo
 }
 
 func tiempoEsperaAleatorio() time.Duration {
@@ -125,12 +125,29 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 				nr.estado = "candidato"
 			}
 		} else if nr.estado == "candidato" {
-			select{
-
-
+			nr.voteFor = nr.Yo
+			nr.votos = 1
+			nr.currentTerm++
+			pedirVotacion(nr)
+			select {
+			case <-nr.canalLider:
+				nr.estado = "lider"
+			case <-nr.canalSeguidor:
+				nr.estado = "seguidor"
+			case <-nr.pulsacion:
+				nr.estado = "seguidor"
+			case <-time.After(tiempoEsperaAleatorio()):
+				nr.estado = "candidato"
 			}
 		} else if nr.estado == "lider" {
-
+			nr.IdLider = nr.Yo
+			enviarPulsaciones(nr)
+			select {
+			case <-nr.canalSeguidor:
+				nr.estado = "seguidor"
+			case <-time.After(time.Duration(50 * time.Millisecond)):
+				nr.estado = "lider"
+			}
 		}
 	}
 }
@@ -243,15 +260,37 @@ func (nr *NodoRaft) obtenerEstado() (int, int, bool, int) {
 // Cuarto valor es el lider, es el indice del líder si no es él
 func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	bool, int, string) {
-	indice := -1
-	mandato := -1
+	indice := nr.commitIndex
+	mandato := nr.currentTerm
 	EsLider := nr.Yo == nr.IdLider
 	idLider := -1
 	valorADevolver := ""
 
 	if EsLider {
-		indice = nr.commitIndex
-		mandato = nr.currentTerm
+		exito := 0
+		// Ver como hacer <----------------------------------------------------------------------------------------
+		entrada := Entrada{indice, mandato, operacion}
+		var resultado Results
+		for i := 0; i < len(nr.Nodos); i++ {
+			if i != nr.Yo {
+				nr.Nodos[i].CallTimeout("NodoRaft.AppendEntries",
+					ArgAppendEntries{mandato,
+						nr.Yo,
+						nr.log[len(nr.log)-1].Index,
+						nr.log[len(nr.log)-1].Term,
+						[]Entrada{entrada},
+						nr.commitIndex},
+					&resultado, 50*time.Microsecond)
+			}
+			if resultado.Success {
+				exito++
+			}
+		}
+		// Preguntar número de votos, si len(nr.Nodos)/2 o (len(nr.Nodos)-1)/2  <---------------------------------
+		if exito > len(nr.Nodos)/2 {
+			nr.commitIndex++
+		}
+		idLider = nr.Yo
 	}
 
 	return indice, mandato, EsLider, idLider, valorADevolver
@@ -456,15 +495,51 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 	}
 }
 
-func pedirVotacion (nr *NodoRaft){
+func pedirVotacion(nr *NodoRaft) {
 	var respuesta RespuestaPeticionVoto
 
-	for i:=0; i < len(nr.Nodos); i++ {
-		if nr.Yo != i{
-			go nr.enviarPeticionVoto(i, 
-				&ArgsPeticionVoto{nr.CurrentTerm, nr.Yo}, &respuesta)
+	for i := 0; i < len(nr.Nodos); i++ {
+		if nr.Yo != i {
+			go nr.enviarPeticionVoto(i, &ArgsPeticionVoto{nr.currentTerm, nr.Yo,
+				nr.log[len(nr.log)-1].Index, nr.log[len(nr.log)-1].Term},
+				&respuesta)
 		}
-
 	}
+}
 
+func (nr *NodoRaft) enviarPulsacion(nodo int, args *ArgAppendEntries,
+	reply *Results) bool {
+
+	fallo := nr.Nodos[nodo].CallTimeout("NodoRaft.AppendEntries", args,
+		reply, 50*time.Millisecond)
+
+	if fallo == nil {
+		//En el caso que se pida voto a un mandato superior
+		if reply.Term > nr.currentTerm {
+			nr.currentTerm = reply.Term
+			nr.IdLider = -1
+			nr.canalSeguidor <- true
+
+		}
+		nr.pulsacion <- true
+
+		return true
+
+	} else {
+		return false
+	}
+}
+
+func enviarPulsaciones(nr *NodoRaft) {
+	var respuesta Results
+
+	for i := 0; i < len(nr.Nodos); i++ {
+		if nr.Yo != i {
+			go nr.enviarPulsacion(i,
+				&ArgAppendEntries{nr.currentTerm,
+					nr.Yo, nr.log[len(nr.log)-1].Index,
+					nr.log[len(nr.log)-1].Term, []Entrada{},
+					nr.commitIndex}, &respuesta)
+		}
+	}
 }
