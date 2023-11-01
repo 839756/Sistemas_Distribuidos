@@ -111,7 +111,7 @@ func tiempoEsperaAleatorio() time.Duration {
 	rand.Seed(time.Now().UnixNano())
 
 	// Generar un número aleatorio entre 200 y 1000
-	return time.Duration(rand.Intn(801)+200) * time.Millisecond
+	return time.Duration(rand.Intn(1)+1000) * time.Millisecond
 }
 
 func maquinaEstadosNodo(nr *NodoRaft) {
@@ -292,6 +292,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 				exito++
 			}
 		}
+
 		if exito > len(nr.Nodos)/2 {
 			nr.commitIndex++
 		}
@@ -411,6 +412,8 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 	nr.Mux.Lock()
 	defer nr.Mux.Unlock()
 
+	nr.pulsacion <- true
+
 	if args.Term < nr.currentTerm {
 		results.Term = nr.currentTerm
 		results.Success = false
@@ -526,7 +529,6 @@ func (nr *NodoRaft) enviarPulsacion(nodo int, args *ArgAppendEntries,
 			nr.canalSeguidor <- true
 
 		}
-		nr.pulsacion <- true
 
 		return true
 
