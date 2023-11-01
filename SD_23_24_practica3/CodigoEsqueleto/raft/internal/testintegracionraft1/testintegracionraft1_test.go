@@ -360,7 +360,7 @@ func (cfg *configDespliegue) comprobarEstadoRemoto(idNodoDeseado int,
 	mandatoDeseado int, esLiderDeseado bool, IdLiderDeseado int) {
 	idNodo, mandato, esLider, idLider := cfg.obtenerEstadoRemoto(idNodoDeseado)
 
-	//cfg.t.Log("Estado replica 0: ", idNodo, mandato, esLider, idLider, "\n")
+	cfg.t.Log("Estado replica 0: ", idNodo, mandato, esLider, idLider, "\n")
 
 	if idNodo != idNodoDeseado || mandato != mandatoDeseado ||
 		esLider != esLiderDeseado || idLider != IdLiderDeseado {

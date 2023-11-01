@@ -181,6 +181,12 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	nr.canalLider = make(chan bool)
 	nr.canalSeguidor = make(chan bool)
 	nr.pulsacion = make(chan bool)
+	nuevaEntrada := Entrada{
+		nr.commitIndex,
+		nr.currentTerm,
+		TipoOperacion{},
+	}
+	nr.log = append(nr.log, nuevaEntrada)
 
 	if kEnableDebugLogs {
 		nombreNodo := nodos[yo].Host() + "_" + nodos[yo].Port()
@@ -209,7 +215,7 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 		nr.Logger = log.New(ioutil.Discard, "", 0)
 	}
 
-	// Añadir codigo de inicialización
+	go maquinaEstadosNodo(nr)
 
 	return nr
 }
@@ -415,7 +421,7 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 
 	newLogIndex := args.PrevLogIndex + 1
 
-	if len(nr.log) > args.PrevLogIndex &&
+	if len(nr.log) > newLogIndex &&
 		nr.log[newLogIndex].Term != args.Entries[0].Term {
 		nr.log = nr.log[:args.PrevLogIndex]
 	}
