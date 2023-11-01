@@ -286,7 +286,6 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 				exito++
 			}
 		}
-		// Preguntar número de votos, si len(nr.Nodos)/2 o (len(nr.Nodos)-1)/2  <---------------------------------
 		if exito > len(nr.Nodos)/2 {
 			nr.commitIndex++
 		}
