@@ -202,17 +202,28 @@ func (cfg *configDespliegue) elegirPrimerLiderTest2(t *testing.T) {
 
 // Fallo de un primer lider y reeleccion de uno nuevo - 3 NODOS RAFT
 func (cfg *configDespliegue) falloAnteriorElegirNuevoLiderTest3(t *testing.T) {
-	t.Skip("SKIPPED FalloAnteriorElegirNuevoLiderTest3")
+	// t.Skip("SKIPPED FalloAnteriorElegirNuevoLiderTest3")
 
 	fmt.Println(t.Name(), ".....................")
 
 	cfg.startDistributedProcesses()
 
 	fmt.Printf("Lider inicial\n")
-	cfg.pruebaUnLider(3)
+	lider := cfg.pruebaUnLider(3)
 
-	// Desconectar lider
-	// ???
+	var reply raft.Vacio
+	for i, endPoint := range cfg.nodosRaft {
+		if i == lider {
+			err := endPoint.CallTimeout("NodoRaft.ParaNodo",
+				raft.Vacio{}, &reply, 10*time.Millisecond)
+			check.CheckError(err, "Error en llamada RPC Para nodo")
+
+			despliegue.ExecMutipleHosts(EXECREPLICACMD+
+				" "+strconv.Itoa(lider)+" "+
+				rpctimeout.HostPortArrayToString(cfg.nodosRaft),
+				[]string{endPoint.Host()}, cfg.cr, PRIVKEYFILE)
+		}
+	}
 
 	fmt.Printf("Comprobar nuevo lider\n")
 	cfg.pruebaUnLider(3)
