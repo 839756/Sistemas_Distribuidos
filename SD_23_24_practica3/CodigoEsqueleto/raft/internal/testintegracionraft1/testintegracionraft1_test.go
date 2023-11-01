@@ -238,7 +238,14 @@ func (cfg *configDespliegue) falloAnteriorElegirNuevoLiderTest3(t *testing.T) {
 func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 	t.Skip("SKIPPED tresOperacionesComprometidasEstable")
 
-	// A completar ???
+	fmt.Println(t.Name(), ".....................")
+
+	cfg.startDistributedProcesses()
+
+	// Parar réplicas alamcenamiento en remoto
+	cfg.stopDistributedProcesses() // Parametros
+
+	fmt.Println(".............", t.Name(), "Superado")
 }
 
 // Se consigue acuerdo a pesar de desconexiones de seguidor -- 3 NODOS RAFT
@@ -379,4 +386,13 @@ func (cfg *configDespliegue) comprobarEstadoRemoto(idNodoDeseado int,
 			idNodoDeseado, cfg.t.Name())
 	}
 
+}
+
+func (cfg *configDespliegue) someterOperacion(idLider int, operacion string) {
+	var reply raft.ResultadoRemoto
+
+	err := cfg.nodosRaft[idLider].CallTimeout("NodoRaft.SometerOperacionRaft",
+		raft.TipoOperacion{operacion, "0", "0"}, &reply,
+		50*time.Millisecond)
+	check.CheckError(err, "Error en llamada RPC SometerOperacion")
 }

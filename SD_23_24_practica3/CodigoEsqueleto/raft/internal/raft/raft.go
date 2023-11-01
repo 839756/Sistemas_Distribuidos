@@ -294,7 +294,9 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 		}
 
 		if exito > len(nr.Nodos)/2 {
+			nr.log[nr.commitIndex] = entrada
 			nr.commitIndex++
+
 		}
 		idLider = nr.Yo
 	}
@@ -337,8 +339,7 @@ type ResultadoRemoto struct {
 
 func (nr *NodoRaft) SometerOperacionRaft(operacion TipoOperacion,
 	reply *ResultadoRemoto) error {
-	reply.IndiceRegistro, reply.Mandato, reply.EsLider,
-		reply.IdLider, reply.ValorADevolver = nr.someterOperacion(operacion)
+	reply.IndiceRegistro, reply.Mandato, reply.EsLider, reply.IdLider, reply.ValorADevolver = nr.someterOperacion(operacion)
 	return nil
 }
 
