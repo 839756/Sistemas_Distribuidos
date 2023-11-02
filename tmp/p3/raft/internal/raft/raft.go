@@ -277,22 +277,25 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	valorADevolver := ""
 
 	nr.Logger.Println("Ha entrado en someterOperación")
-
+	// Solo si es el lider
 	if EsLider {
+		// Número de nodos confirmados
 		exito := 0
 
 		nr.Logger.Println("Ha entrado en el primer if de someterOperación")
-
+		// Hacemos la estructura de la entrada
 		entrada := Entrada{indice, mandato, operacion}
-
+		// Añadimos la entrada al LOG
 		nr.log = append(nr.log, entrada)
-
-		//nr.log[nr.commitIndex] = entrada
+		// Ver contenido del LOG
 		nr.verLog()
 		var resultado Results
+		// Para todos los nodos
 		for i := 0; i < len(nr.Nodos); i++ {
+			// Excepto yo
 			if i != nr.Yo {
 				nr.Logger.Printf("Ha llegado a enviar el mensaje al nodo %d", i)
+				// Enviar a todos los nodos
 				err := nr.Nodos[i].CallTimeout("NodoRaft.AppendEntries",
 					ArgAppendEntries{mandato,
 						nr.Yo,
@@ -302,13 +305,13 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 						nr.commitIndex},
 					&resultado, 5000*time.Millisecond)
 				check.CheckError(err, "Error en llamada RPC SometerOperacion")
-
+				// Si el nodo lo ha completa dice que ok
 				if resultado.Success {
 					exito++
 				}
 			}
 		}
-
+		// Si se han confirmado más de la mitad ya está comprometido
 		if exito > len(nr.Nodos)/2 {
 			nr.commitIndex++
 			nr.Logger.Printf("Commit Index ahora es %d", nr.commitIndex)
@@ -344,7 +347,8 @@ type EstadoRemoto struct {
 }
 
 func (nr *NodoRaft) ObtenerEstadoNodo(args Vacio, reply *EstadoRemoto) error {
-	reply.IdNodo, reply.Mandato, reply.EsLider, reply.IdLider = nr.obtenerEstado()
+	reply.IdNodo, reply.Mandato, reply.EsLider,
+		reply.IdLider = nr.obtenerEstado()
 	return nil
 }
 
@@ -356,7 +360,8 @@ type ResultadoRemoto struct {
 
 func (nr *NodoRaft) SometerOperacionRaft(operacion TipoOperacion,
 	reply *ResultadoRemoto) error {
-	reply.IndiceRegistro, reply.Mandato, reply.EsLider, reply.IdLider, reply.ValorADevolver = nr.someterOperacion(operacion)
+	reply.IndiceRegistro, reply.Mandato, reply.EsLider, reply.IdLider,
+		reply.ValorADevolver = nr.someterOperacion(operacion)
 	return nil
 }
 
@@ -429,36 +434,33 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 
 	nr.Mux.Lock()
 
+	// Confirmar latido
 	nr.pulsacion <- true
 
+	// Si es un latido omitir las comprobaciones
 	if len(args.Entries) > 0 {
-		if args.Term < nr.currentTerm {
-			results.Term = nr.currentTerm
-			results.Success = false
-			return nil
-		} else if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm && len(nr.log) > 1 {
-			results.Term = nr.currentTerm
-			results.Success = false
+		if !nr.malStatement(args, results) {
+			// No cumple los statements
 			return nil
 		}
-
+		// Indice inmediatamente posterior al útlimo conocido
 		newLogIndex := args.PrevLogIndex + 1
-
+		// Entradas conflictivas
 		if len(nr.log) > newLogIndex && len(args.Entries) > 0 &&
 			nr.log[newLogIndex].Term != args.Entries[0].Term {
+			// Se borran las entradas conflictivas
 			nr.log = nr.log[:args.PrevLogIndex]
 		}
-
+		// Se añaden nuevas entradas
 		nr.log = append(nr.log, args.Entries...)
-
-		if len(args.Entries) > 0 {
-			nr.verLog()
-		}
-
+		// Ver el contenido del log
+		nr.verLog()
+		// CommitIndex bajo
 		if args.LeaderCommit > nr.commitIndex {
 			nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
 		}
 	}
+	// Contestar bien
 	results.Success = true
 	results.Term = nr.currentTerm
 
@@ -467,12 +469,31 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 	return nil
 }
 
+//Funcion para obtener el minimo valor
 func min(a int, b int) int {
 	if a > b {
 		return b
 	} else {
 		return a
 	}
+}
+
+func (nr *NodoRaft) malStatement(args *ArgAppendEntries,
+	results *Results) bool {
+
+	// Termino incorrecto
+	if args.Term < nr.currentTerm {
+		results.Term = nr.currentTerm
+		results.Success = false
+		return false
+	} else if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm &&
+		len(nr.log) > 1 {
+		// Log desactualizado
+		results.Term = nr.currentTerm
+		results.Success = false
+		return false
+	}
+	return true
 }
 
 // ----- Metodos/Funciones a utilizar como clientes
@@ -534,9 +555,11 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 
 func pedirVotacion(nr *NodoRaft) {
 	var respuesta RespuestaPeticionVoto
-
+	// para todos los nodos
 	for i := 0; i < len(nr.Nodos); i++ {
+		// Excepto yo
 		if nr.Yo != i {
+			// Enviar peticion voto a los demás
 			go nr.enviarPeticionVoto(i, &ArgsPeticionVoto{nr.currentTerm, nr.Yo,
 				nr.log[len(nr.log)-1].Index, nr.log[len(nr.log)-1].Term},
 				&respuesta)
@@ -552,9 +575,9 @@ func (nr *NodoRaft) enviarPulsacion(nodo int, args *ArgAppendEntries,
 
 	if fallo == nil {
 		//En el caso que se pida voto a un mandato superior
-		if reply.Term > nr.currentTerm {
+		if reply.Term > nr.currentTerm { //Si el mandato es superior:
 			nr.currentTerm = reply.Term
-			nr.IdLider = -1
+			nr.IdLider = -1 //Pasa a ser seguidor
 			nr.canalSeguidor <- true
 
 		}
@@ -570,7 +593,9 @@ func enviarPulsaciones(nr *NodoRaft) {
 	var respuesta Results
 
 	for i := 0; i < len(nr.Nodos); i++ {
+		// Excepto yo
 		if nr.Yo != i {
+			// Enviar pulsacion a los demás
 			go nr.enviarPulsacion(i,
 				&ArgAppendEntries{nr.currentTerm,
 					nr.Yo, nr.log[len(nr.log)-1].Index,
