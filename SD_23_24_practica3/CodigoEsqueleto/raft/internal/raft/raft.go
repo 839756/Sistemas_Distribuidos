@@ -414,32 +414,33 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 
 	nr.pulsacion <- true
 
-	if args.Term < nr.currentTerm {
+	if len(args.Entries) > 0 {
+		if args.Term < nr.currentTerm {
+			results.Term = nr.currentTerm
+			results.Success = false
+			return nil
+		} else if nr.log[args.PrevLogIndex].Term != 0 && nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
+			results.Term = nr.currentTerm
+			results.Success = false
+			return nil
+		}
+
+		newLogIndex := args.PrevLogIndex + 1
+
+		if len(nr.log) > newLogIndex &&
+			nr.log[newLogIndex].Term != args.Entries[0].Term {
+			nr.log = nr.log[:args.PrevLogIndex]
+		}
+
+		nr.log = append(nr.log, args.Entries...)
+
+		if args.LeaderCommit > nr.commitIndex {
+			nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
+		}
+
+		results.Success = true
 		results.Term = nr.currentTerm
-		results.Success = false
-		return nil
-	} else if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
-		results.Term = nr.currentTerm
-		results.Success = false
-		return nil
 	}
-
-	newLogIndex := args.PrevLogIndex + 1
-
-	if len(nr.log) > newLogIndex &&
-		nr.log[newLogIndex].Term != args.Entries[0].Term {
-		nr.log = nr.log[:args.PrevLogIndex]
-	}
-
-	nr.log = append(nr.log, args.Entries...)
-
-	if args.LeaderCommit > nr.commitIndex {
-		nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
-	}
-
-	results.Success = true
-	results.Term = nr.currentTerm
-
 	return nil
 }
 
@@ -554,4 +555,12 @@ func enviarPulsaciones(nr *NodoRaft) {
 					nr.commitIndex}, &respuesta)
 		}
 	}
+}
+
+func (nr *NodoRaft) verLog() {
+	nr.Logger.Printf("El Logger con longitud %d contiene ", len(nr.log))
+	for i := 0; i < len(nr.log); i++ {
+		nr.Logger.Printf("%d %s ", nr.log[i].Index, nr.log[i].Op.Operacion)
+	}
+	nr.Logger.Println("")
 }

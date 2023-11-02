@@ -225,6 +225,8 @@ func (cfg *configDespliegue) falloAnteriorElegirNuevoLiderTest3(t *testing.T) {
 		}
 	}
 
+	time.Sleep(2000 * time.Millisecond)
+
 	fmt.Printf("Comprobar nuevo lider\n")
 	cfg.pruebaUnLider(3)
 
@@ -236,11 +238,21 @@ func (cfg *configDespliegue) falloAnteriorElegirNuevoLiderTest3(t *testing.T) {
 
 // 3 operaciones comprometidas con situacion estable y sin fallos - 3 NODOS RAFT
 func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
-	t.Skip("SKIPPED tresOperacionesComprometidasEstable")
+	//t.Skip("SKIPPED tresOperacionesComprometidasEstable")
 
 	fmt.Println(t.Name(), ".....................")
 
 	cfg.startDistributedProcesses()
+
+	lider := cfg.pruebaUnLider(3)
+
+	cfg.t.Log("Antes de someter una operacion")
+
+	cfg.someterOperacion(lider, "leer")
+
+	//cfg.t.Log("El lider es ", lider, "\n")
+
+	//cfg.someterOperacion(lider, "leer")
 
 	// Parar réplicas alamcenamiento en remoto
 	cfg.stopDistributedProcesses() // Parametros
@@ -392,7 +404,7 @@ func (cfg *configDespliegue) someterOperacion(idLider int, operacion string) {
 	var reply raft.ResultadoRemoto
 
 	err := cfg.nodosRaft[idLider].CallTimeout("NodoRaft.SometerOperacionRaft",
-		raft.TipoOperacion{operacion, "0", "0"}, &reply,
+		raft.TipoOperacion{Operacion: operacion, Clave: "0", Valor: "0"}, &reply,
 		50*time.Millisecond)
 	check.CheckError(err, "Error en llamada RPC SometerOperacion")
 }
