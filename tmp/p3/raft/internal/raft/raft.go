@@ -300,7 +300,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 						nr.log[len(nr.log)-1].Term,
 						[]Entrada{entrada},
 						nr.commitIndex},
-					&resultado, 500*time.Millisecond)
+					&resultado, 5000*time.Millisecond)
 				check.CheckError(err, "Error en llamada RPC SometerOperacion")
 
 				if resultado.Success {
