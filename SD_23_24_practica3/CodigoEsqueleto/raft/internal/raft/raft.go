@@ -35,6 +35,7 @@ import (
 
 	//"net/rpc"
 
+	"raft/internal/comun/check"
 	"raft/internal/comun/rpctimeout"
 )
 
@@ -98,8 +99,8 @@ type NodoRaft struct {
 	commitIndex int // Indice del último valor comprometido
 	lastApplied int // Indice del último valor aplicado a la maquina de estados
 
-	nextIndex  []int // Para cada nodo la siguiente entrada que tiene que enviar el lider
-	matchIndex []int // Para cada nodo el mayor indice raplicado conocido
+	// nextIndex  []int // Para cada nodo la siguiente entrada que tiene que enviar el lider
+	// matchIndex []int // Para cada nodo el mayor indice raplicado conocido
 
 	canalLider    chan bool //Indicativo que es lider
 	canalSeguidor chan bool //Indicativo que es seguidor
@@ -110,8 +111,8 @@ func tiempoEsperaAleatorio() time.Duration {
 	// Seed para generar números realmente aleatorios
 	rand.Seed(time.Now().UnixNano())
 
-	// Generar un número aleatorio entre 200 y 1000
-	return time.Duration(rand.Intn(801)+200) * time.Millisecond
+	// Generar un número aleatorio entre 200 y 800
+	return time.Duration(rand.Intn(501)+200) * time.Millisecond
 }
 
 func maquinaEstadosNodo(nr *NodoRaft) {
@@ -182,8 +183,8 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	nr.canalSeguidor = make(chan bool)
 	nr.pulsacion = make(chan bool)
 	nuevaEntrada := Entrada{
-		nr.commitIndex,
-		nr.currentTerm,
+		0,
+		0,
 		TipoOperacion{},
 	}
 	nr.log = append(nr.log, nuevaEntrada)
@@ -266,21 +267,29 @@ func (nr *NodoRaft) obtenerEstado() (int, int, bool, int) {
 // Cuarto valor es el lider, es el indice del líder si no es él
 func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	bool, int, string) {
+	nr.Mux.Lock()
+
 	indice := nr.commitIndex
 	mandato := nr.currentTerm
 	EsLider := nr.Yo == nr.IdLider
 	idLider := -1
 	valorADevolver := ""
 
+	nr.Logger.Println("Ha entrado en someterOperación")
+
 	if EsLider {
 		exito := 0
-		// Ver como hacer <----------------------------------------------------------------------------------------
+
+		nr.Logger.Println("Ha entrado en el primer if de someterOperación")
+
 		entrada := Entrada{indice, mandato, operacion}
 		nr.log[nr.commitIndex] = entrada
+		nr.verLog()
 		var resultado Results
 		for i := 0; i < len(nr.Nodos); i++ {
 			if i != nr.Yo {
-				nr.Nodos[i].CallTimeout("NodoRaft.AppendEntries",
+				nr.Logger.Printf("Ha llegado a enviar el mensaje al nodo %d", i)
+				err := nr.Nodos[i].CallTimeout("NodoRaft.AppendEntries",
 					ArgAppendEntries{mandato,
 						nr.Yo,
 						nr.log[len(nr.log)-1].Index,
@@ -288,9 +297,11 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 						[]Entrada{entrada},
 						nr.commitIndex},
 					&resultado, 50*time.Microsecond)
-			}
-			if resultado.Success {
-				exito++
+				check.CheckError(err, "Error en llamada RPC SometerOperacion")
+
+				if resultado.Success {
+					exito++
+				}
 			}
 		}
 
@@ -299,6 +310,8 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 		}
 		idLider = nr.Yo
 	}
+
+	nr.Mux.Unlock()
 
 	return indice, mandato, EsLider, idLider, valorADevolver
 }
@@ -410,37 +423,39 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 	results *Results) error {
 
 	nr.Mux.Lock()
-	defer nr.Mux.Unlock()
 
 	nr.pulsacion <- true
 
-	if len(args.Entries) > 0 {
-		if args.Term < nr.currentTerm {
-			results.Term = nr.currentTerm
-			results.Success = false
-			return nil
-		} else if nr.log[args.PrevLogIndex].Term != 0 && nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
-			results.Term = nr.currentTerm
-			results.Success = false
-			return nil
-		}
-
-		newLogIndex := args.PrevLogIndex + 1
-
-		if len(nr.log) > newLogIndex &&
-			nr.log[newLogIndex].Term != args.Entries[0].Term {
-			nr.log = nr.log[:args.PrevLogIndex]
-		}
-
-		nr.log = append(nr.log, args.Entries...)
-
-		if args.LeaderCommit > nr.commitIndex {
-			nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
-		}
-
-		results.Success = true
+	if args.Term < nr.currentTerm {
 		results.Term = nr.currentTerm
+		results.Success = false
+		return nil
+	} else if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm && len(nr.log) > 1 {
+		results.Term = nr.currentTerm
+		results.Success = false
+		return nil
 	}
+
+	newLogIndex := args.PrevLogIndex + 1
+
+	if len(nr.log) > newLogIndex && len(args.Entries) > 0 &&
+		nr.log[newLogIndex].Term != args.Entries[0].Term {
+		nr.log = nr.log[:args.PrevLogIndex]
+	}
+
+	nr.log = append(nr.log, args.Entries...)
+
+	nr.verLog()
+
+	if args.LeaderCommit > nr.commitIndex {
+		nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
+	}
+
+	results.Success = true
+	results.Term = nr.currentTerm
+
+	nr.Mux.Unlock()
+
 	return nil
 }
 

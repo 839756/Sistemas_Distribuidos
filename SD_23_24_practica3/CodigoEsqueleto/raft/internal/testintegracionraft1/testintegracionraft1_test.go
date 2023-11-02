@@ -405,6 +405,6 @@ func (cfg *configDespliegue) someterOperacion(idLider int, operacion string) {
 
 	err := cfg.nodosRaft[idLider].CallTimeout("NodoRaft.SometerOperacionRaft",
 		raft.TipoOperacion{Operacion: operacion, Clave: "0", Valor: "0"}, &reply,
-		50*time.Millisecond)
-	check.CheckError(err, "Error en llamada RPC SometerOperacion")
+		5000*time.Millisecond)
+	check.CheckError(err, "Error en llamada RPC SometerOperacionRaft")
 }

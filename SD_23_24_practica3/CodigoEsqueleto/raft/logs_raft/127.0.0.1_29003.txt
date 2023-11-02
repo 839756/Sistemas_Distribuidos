@@ -1,1 +1,8 @@
-127.0.0.1_29003 -> 11:54:34.174450 raft.go:213: logger initialized
+127.0.0.1_29003 -> 15:23:16.039783 raft.go:214: logger initialized
+127.0.0.1_29003 -> 15:23:17.997382 raft.go:278: Ha entrado en someterOperación
+127.0.0.1_29003 -> 15:23:17.997430 raft.go:283: Ha entrado en el primer if de someterOperación
+127.0.0.1_29003 -> 15:23:17.997451 raft.go:576: El Logger con longitud 1 contiene 
+127.0.0.1_29003 -> 15:23:17.997468 raft.go:578: 0 leer 
+127.0.0.1_29003 -> 15:23:17.997489 raft.go:580: 
+127.0.0.1_29003 -> 15:23:17.997506 raft.go:291: Ha llegado a enviar el mensaje al nodo 0
+127.0.0.1_29003 -> 15:23:17.998528 raft.go:291: Ha llegado a enviar el mensaje al nodo 1
