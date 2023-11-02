@@ -1,0 +1,31 @@
+127.0.0.1_29001 -> 21:04:36.871438 raft.go:214: logger initialized
+127.0.0.1_29001 -> 21:04:38.890286 raft.go:278: Ha entrado en someterOperación
+127.0.0.1_29001 -> 21:04:38.890317 raft.go:283: Ha entrado en el primer if de someterOperación
+127.0.0.1_29001 -> 21:04:38.890330 raft.go:583: El Logger con longitud 2 contiene 
+127.0.0.1_29001 -> 21:04:38.890339 raft.go:585: 0  
+127.0.0.1_29001 -> 21:04:38.890347 raft.go:585: 0 leer 
+127.0.0.1_29001 -> 21:04:38.890354 raft.go:587: 
+127.0.0.1_29001 -> 21:04:38.890362 raft.go:294: Ha llegado a enviar el mensaje al nodo 1
+127.0.0.1_29001 -> 21:04:38.891013 raft.go:294: Ha llegado a enviar el mensaje al nodo 2
+127.0.0.1_29001 -> 21:04:38.891677 raft.go:313: Commit Index ahora es 1
+127.0.0.1_29001 -> 21:04:38.892286 raft.go:278: Ha entrado en someterOperación
+127.0.0.1_29001 -> 21:04:38.892304 raft.go:283: Ha entrado en el primer if de someterOperación
+127.0.0.1_29001 -> 21:04:38.892331 raft.go:583: El Logger con longitud 3 contiene 
+127.0.0.1_29001 -> 21:04:38.892344 raft.go:585: 0  
+127.0.0.1_29001 -> 21:04:38.892354 raft.go:585: 0 leer 
+127.0.0.1_29001 -> 21:04:38.892369 raft.go:585: 1 escribir 
+127.0.0.1_29001 -> 21:04:38.892378 raft.go:587: 
+127.0.0.1_29001 -> 21:04:38.892388 raft.go:294: Ha llegado a enviar el mensaje al nodo 1
+127.0.0.1_29001 -> 21:04:38.893063 raft.go:294: Ha llegado a enviar el mensaje al nodo 2
+127.0.0.1_29001 -> 21:04:38.893764 raft.go:313: Commit Index ahora es 2
+127.0.0.1_29001 -> 21:04:38.894313 raft.go:278: Ha entrado en someterOperación
+127.0.0.1_29001 -> 21:04:38.894328 raft.go:283: Ha entrado en el primer if de someterOperación
+127.0.0.1_29001 -> 21:04:38.894337 raft.go:583: El Logger con longitud 4 contiene 
+127.0.0.1_29001 -> 21:04:38.894344 raft.go:585: 0  
+127.0.0.1_29001 -> 21:04:38.894351 raft.go:585: 0 leer 
+127.0.0.1_29001 -> 21:04:38.894358 raft.go:585: 1 escribir 
+127.0.0.1_29001 -> 21:04:38.894365 raft.go:585: 2 leer 
+127.0.0.1_29001 -> 21:04:38.894371 raft.go:587: 
+127.0.0.1_29001 -> 21:04:38.894378 raft.go:294: Ha llegado a enviar el mensaje al nodo 1
+127.0.0.1_29001 -> 21:04:38.895033 raft.go:294: Ha llegado a enviar el mensaje al nodo 2
+127.0.0.1_29001 -> 21:04:38.895747 raft.go:313: Commit Index ahora es 3
