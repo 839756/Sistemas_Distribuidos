@@ -276,6 +276,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 		exito := 0
 		// Ver como hacer <----------------------------------------------------------------------------------------
 		entrada := Entrada{indice, mandato, operacion}
+		nr.log[nr.commitIndex] = entrada
 		var resultado Results
 		for i := 0; i < len(nr.Nodos); i++ {
 			if i != nr.Yo {
@@ -294,9 +295,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 		}
 
 		if exito > len(nr.Nodos)/2 {
-			nr.log[nr.commitIndex] = entrada
 			nr.commitIndex++
-
 		}
 		idLider = nr.Yo
 	}
@@ -418,9 +417,11 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 	if args.Term < nr.currentTerm {
 		results.Term = nr.currentTerm
 		results.Success = false
+		return nil
 	} else if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
 		results.Term = nr.currentTerm
 		results.Success = false
+		return nil
 	}
 
 	newLogIndex := args.PrevLogIndex + 1
@@ -435,6 +436,9 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 	if args.LeaderCommit > nr.commitIndex {
 		nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
 	}
+
+	results.Success = true
+	results.Term = nr.currentTerm
 
 	return nil
 }
