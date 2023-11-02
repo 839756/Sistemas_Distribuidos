@@ -252,7 +252,7 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 	//cfg.t.Log("El lider es ", lider, "\n")
 
-	//cfg.someterOperacion(lider, "leer")
+	cfg.someterOperacion(lider, "escribir")
 
 	// Parar réplicas alamcenamiento en remoto
 	cfg.stopDistributedProcesses() // Parametros
