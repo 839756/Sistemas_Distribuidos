@@ -19,14 +19,14 @@ import (
 
 const (
 	//hosts
-	MAQUINA1 = "127.0.0.1"
-	MAQUINA2 = "127.0.0.1"
-	MAQUINA3 = "127.0.0.1"
+	MAQUINA1 = "192.168.3.10"
+	MAQUINA2 = "192.168.3.11"
+	MAQUINA3 = "192.168.3.12"
 
 	//puertos
-	PUERTOREPLICA1 = "29001"
-	PUERTOREPLICA2 = "29002"
-	PUERTOREPLICA3 = "29003"
+	PUERTOREPLICA1 = "29120"
+	PUERTOREPLICA2 = "29120"
+	PUERTOREPLICA3 = "29120"
 
 	//nodos replicas
 	REPLICA1 = MAQUINA1 + ":" + PUERTOREPLICA1
@@ -225,7 +225,7 @@ func (cfg *configDespliegue) falloAnteriorElegirNuevoLiderTest3(t *testing.T) {
 		}
 	}
 
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(6000 * time.Millisecond)
 
 	fmt.Printf("Comprobar nuevo lider\n")
 	cfg.pruebaUnLider(3)
@@ -371,7 +371,7 @@ func (cfg *configDespliegue) startDistributedProcesses() {
 	}
 
 	// aproximadamente 500 ms para cada arranque por ssh en portatil
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(10000 * time.Millisecond)
 }
 
 //

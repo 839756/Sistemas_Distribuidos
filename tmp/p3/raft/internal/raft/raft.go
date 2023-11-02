@@ -116,6 +116,7 @@ func tiempoEsperaAleatorio() time.Duration {
 }
 
 func maquinaEstadosNodo(nr *NodoRaft) {
+	time.Sleep(10 * time.Second)
 	for {
 		if nr.estado == "seguidor" {
 			select {
@@ -299,7 +300,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 						nr.log[len(nr.log)-1].Term,
 						[]Entrada{entrada},
 						nr.commitIndex},
-					&resultado, 50*time.Microsecond)
+					&resultado, 500*time.Millisecond)
 				check.CheckError(err, "Error en llamada RPC SometerOperacion")
 
 				if resultado.Success {
