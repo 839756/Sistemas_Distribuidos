@@ -321,6 +321,12 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	return indice, mandato, EsLider, idLider, valorADevolver
 }
 
+//------------------------------------------------------------------------
+// Para el test 4
+func (nr *NodoRaft) obtenerEstadoLog() (int, int, int, TipoOperacion) {
+	return nr.Yo, nr.log[len(nr.log)-1].Index, nr.log[len(nr.log)-1].Term, nr.log[len(nr.log)-1].Op
+}
+
 // -----------------------------------------------------------------------
 // LLAMADAS RPC al API
 //
@@ -360,13 +366,15 @@ func (nr *NodoRaft) SometerOperacionRaft(operacion TipoOperacion,
 	return nil
 }
 
+//-------------------------------------------------------------------------
+// Para el test 4
 type EstadoLog struct {
 	IdNodo int
 	Entrada
 }
 
 func (nr *NodoRaft) ObtenerEstadoLogRaft(args Vacio, reply *EstadoLog) error {
-
+	reply.IdNodo, reply.Index, reply.Term, reply.Op = nr.obtenerEstadoLog()
 	return nil
 }
 

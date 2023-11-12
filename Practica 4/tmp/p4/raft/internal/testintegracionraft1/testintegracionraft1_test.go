@@ -246,11 +246,21 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 	lider := cfg.pruebaUnLider(3)
 
-	cfg.comprobarSometerOperacion(lider, "leer")
+	operacion1 := raft.TipoOperacion{Operacion: "leer", Clave: "1", Valor: "1"}
+	operacion2 := raft.TipoOperacion{Operacion: "escribir", Clave: "2", Valor: "2"}
+	operacion3 := raft.TipoOperacion{Operacion: "leer", Clave: "3", Valor: "3"}
 
-	cfg.comprobarSometerOperacion(lider, "escribir")
+	cfg.SometerOperacion(lider, operacion1)
 
-	cfg.comprobarSometerOperacion(lider, "leer")
+	cfg.comprobarEstadoRemotoLog(1, 0, 1, operacion1)
+
+	cfg.SometerOperacion(lider, operacion2)
+
+	cfg.comprobarEstadoRemotoLog(2, 1, 1, operacion2)
+
+	cfg.SometerOperacion(lider, operacion3)
+
+	cfg.comprobarEstadoRemotoLog(3, 2, 1, operacion3)
 
 	// Parar réplicas alamcenamiento en remoto
 	cfg.stopDistributedProcesses() // Parametros
@@ -398,13 +408,45 @@ func (cfg *configDespliegue) comprobarEstadoRemoto(idNodoDeseado int,
 
 }
 
-func (cfg *configDespliegue) comprobarSometerOperacion(idLider int, operacion string) {
+func (cfg *configDespliegue) SometerOperacion(idLider int, operacion raft.TipoOperacion) {
 
 	var reply raft.ResultadoRemoto
 
 	err := cfg.nodosRaft[idLider].CallTimeout("NodoRaft.SometerOperacionRaft",
-		raft.TipoOperacion{Operacion: operacion, Clave: "0", Valor: "0"}, &reply,
-		5000*time.Millisecond)
+		operacion, &reply, 5000*time.Millisecond)
 	check.CheckError(err, "Error en llamada RPC SometerOperacionRaft")
+
+}
+
+func (cfg *configDespliegue) obtenerEstadoRemotoLog(
+	indiceNodo int) (int, int, int, raft.TipoOperacion) {
+	var reply raft.EstadoLog
+	err := cfg.nodosRaft[indiceNodo].CallTimeout("NodoRaft.ObtenerEstadoLogRaft",
+		raft.Vacio{}, &reply, 10*time.Millisecond)
+	check.CheckError(err, "Error en llamada RPC ObtenerEstadoLogRaft")
+
+	return reply.IdNodo, reply.Index, reply.Term, reply.Op
+}
+
+func (cfg *configDespliegue) comprobarEstadoRemotoLog(nOperacion int,
+	indiceDeseado int, terminoDeseado int, operacionDeseada raft.TipoOperacion) {
+	_, indice1, termino1, operacion1 := cfg.obtenerEstadoRemotoLog(0)
+
+	_, indice2, termino2, operacion2 := cfg.obtenerEstadoRemotoLog(1)
+
+	_, indice3, termino3, operacion3 := cfg.obtenerEstadoRemotoLog(2)
+
+	if indice1 != indiceDeseado || indice2 != indiceDeseado ||
+		indice3 != indiceDeseado {
+		cfg.t.Fatalf("El indice no coincide en la operación %d", nOperacion)
+	} else if termino1 != terminoDeseado || termino2 != terminoDeseado ||
+		termino3 != terminoDeseado {
+		cfg.t.Fatalf("El termino no coincide en la operación %d", nOperacion)
+	} else if operacion1 != operacionDeseada || operacion2 != operacionDeseada ||
+		operacion3 != operacionDeseada {
+		cfg.t.Fatalf("El tipo de operación no coincide en la operación %d", nOperacion)
+	}
+
+	cfg.t.Log("Operacion ", nOperacion, " correcta")
 
 }
