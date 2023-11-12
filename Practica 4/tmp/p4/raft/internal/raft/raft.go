@@ -274,7 +274,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	mandato := nr.currentTerm
 	EsLider := nr.Yo == nr.IdLider
 	idLider := -1
-	valorADevolver := ""
+	valorADevolver := operacion.Clave
 
 	nr.Logger.Println("Ha entrado en someterOperación")
 

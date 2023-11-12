@@ -246,13 +246,11 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 	lider := cfg.pruebaUnLider(3)
 
-	cfg.t.Log("Antes de someter una operacion.")
+	cfg.comprobarSometerOperacion(lider, "leer")
 
-	cfg.someterOperacion(lider, "leer")
+	cfg.comprobarSometerOperacion(lider, "escribir")
 
-	cfg.someterOperacion(lider, "escribir")
-
-	cfg.someterOperacion(lider, "leer")
+	cfg.comprobarSometerOperacion(lider, "leer")
 
 	// Parar réplicas alamcenamiento en remoto
 	cfg.stopDistributedProcesses() // Parametros
@@ -390,7 +388,7 @@ func (cfg *configDespliegue) comprobarEstadoRemoto(idNodoDeseado int,
 	mandatoDeseado int, esLiderDeseado bool, IdLiderDeseado int) {
 	idNodo, mandato, esLider, idLider := cfg.obtenerEstadoRemoto(idNodoDeseado)
 
-	cfg.t.Log("Estado replica 0: ", idNodo, mandato, esLider, idLider, "\n")
+	//cfg.t.Log("Estado replica 0: ", idNodo, mandato, esLider, idLider, "\n")
 
 	if idNodo != idNodoDeseado || mandato != mandatoDeseado ||
 		esLider != esLiderDeseado || idLider != IdLiderDeseado {
@@ -400,11 +398,13 @@ func (cfg *configDespliegue) comprobarEstadoRemoto(idNodoDeseado int,
 
 }
 
-func (cfg *configDespliegue) someterOperacion(idLider int, operacion string) {
+func (cfg *configDespliegue) comprobarSometerOperacion(idLider int, operacion string) {
+
 	var reply raft.ResultadoRemoto
 
 	err := cfg.nodosRaft[idLider].CallTimeout("NodoRaft.SometerOperacionRaft",
 		raft.TipoOperacion{Operacion: operacion, Clave: "0", Valor: "0"}, &reply,
 		5000*time.Millisecond)
 	check.CheckError(err, "Error en llamada RPC SometerOperacionRaft")
+
 }
