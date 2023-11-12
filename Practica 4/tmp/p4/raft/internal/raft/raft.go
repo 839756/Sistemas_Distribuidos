@@ -118,6 +118,10 @@ func tiempoEsperaAleatorio() time.Duration {
 func maquinaEstadosNodo(nr *NodoRaft) {
 	time.Sleep(3 * time.Second)
 	for {
+		if nr.lastApplied < nr.commitIndex {
+			nr.lastApplied++
+		}
+
 		if nr.estado == "seguidor" {
 			select {
 			case <-nr.latido:
@@ -274,7 +278,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	mandato := nr.currentTerm
 	EsLider := nr.Yo == nr.IdLider
 	idLider := -1
-	valorADevolver := operacion.Clave
+	valorADevolver := ""
 
 	nr.Logger.Println("Ha entrado en someterOperación")
 
@@ -324,7 +328,9 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 //------------------------------------------------------------------------
 // Para el test 4
 func (nr *NodoRaft) obtenerEstadoLog() (int, int, int, TipoOperacion) {
-	return nr.Yo, nr.log[len(nr.log)-1].Index, nr.log[len(nr.log)-1].Term, nr.log[len(nr.log)-1].Op
+	return nr.Yo, nr.log[len(nr.log)-1].Index,
+		nr.log[len(nr.log)-1].Term,
+		nr.log[len(nr.log)-1].Op
 }
 
 // -----------------------------------------------------------------------
