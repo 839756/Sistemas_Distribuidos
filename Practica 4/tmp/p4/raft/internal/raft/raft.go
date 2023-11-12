@@ -360,6 +360,16 @@ func (nr *NodoRaft) SometerOperacionRaft(operacion TipoOperacion,
 	return nil
 }
 
+type EstadoLog struct {
+	IdNodo int
+	Entrada
+}
+
+func (nr *NodoRaft) ObtenerEstadoLogRaft(args Vacio, reply *EstadoLog) error {
+
+	return nil
+}
+
 // -----------------------------------------------------------------------
 // LLAMADAS RPC protocolo RAFT
 //
