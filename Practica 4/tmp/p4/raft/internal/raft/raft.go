@@ -99,8 +99,8 @@ type NodoRaft struct {
 	commitIndex int // Indice del último valor comprometido
 	lastApplied int // Indice del último valor aplicado a la maquina de estados
 
-	// nextIndex  []int // Para cada nodo la siguiente entrada que tiene que enviar el lider
-	// matchIndex []int // Para cada nodo el mayor indice raplicado conocido
+	nextIndex  []int // Para cada nodo la siguiente entrada que tiene que enviar el lider
+	matchIndex []int // Para cada nodo el mayor indice raplicado conocido
 
 	canalLider    chan bool //Indicativo que es lider
 	canalSeguidor chan bool //Indicativo que es seguidor
@@ -296,20 +296,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 		var resultado Results
 		for i := 0; i < len(nr.Nodos); i++ {
 			if i != nr.Yo {
-				nr.Logger.Printf("Ha llegado a enviar el mensaje al nodo %d", i)
-				err := nr.Nodos[i].CallTimeout("NodoRaft.AppendEntries",
-					ArgAppendEntries{mandato,
-						nr.Yo,
-						nr.log[len(nr.log)-1].Index,
-						nr.log[len(nr.log)-1].Term,
-						[]Entrada{entrada},
-						nr.commitIndex},
-					&resultado, 50*time.Millisecond)
-				check.CheckError(err, "Error en llamada RPC SometerOperacion")
-
-				if resultado.Success {
-					exito++
-				}
+				nr.enviarAppendEntries(i, mandato, entrada, &resultado, &exito)
 			}
 		}
 
@@ -323,6 +310,29 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	nr.Mux.Unlock()
 
 	return indice, mandato, EsLider, idLider, valorADevolver
+}
+
+//------------------------------------------------------------------------
+// Mandar mensaje de AppendEntries
+func (nr *NodoRaft) enviarAppendEntries(nodo int, mandato int, entrada Entrada, resultado *Results, exito *int) {
+	nr.Logger.Printf("Ha llegado a enviar el mensaje al nodo %d", nodo)
+	err := nr.Nodos[nodo].CallTimeout("NodoRaft.AppendEntries",
+		ArgAppendEntries{mandato,
+			nr.Yo,
+			nr.log[len(nr.log)-1].Index,
+			nr.log[len(nr.log)-1].Term,
+			[]Entrada{entrada},
+			nr.commitIndex},
+		&resultado, 50*time.Millisecond)
+	check.CheckError(err, "Error en llamada RPC SometerOperacion")
+
+	if resultado.Success {
+		*exito++
+		nr.nextIndex[nodo]++
+		nr.matchIndex[nodo]++
+	} else {
+		nr.nextIndex[nodo]--
+	}
 }
 
 //------------------------------------------------------------------------
