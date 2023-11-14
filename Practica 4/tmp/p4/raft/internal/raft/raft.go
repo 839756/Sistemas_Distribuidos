@@ -194,9 +194,6 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	}
 	nr.log = append(nr.log, nuevaEntrada)
 
-	nr.NextIndex = make([]int, 3)
-	nr.MatchIndex = make([]int, 3)
-
 	if kEnableDebugLogs {
 		nombreNodo := nodos[yo].Host() + "_" + nodos[yo].Port()
 		logPrefix := fmt.Sprintf("%s", nombreNodo)
@@ -559,6 +556,9 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 			nr.votos++
 			if nr.votos > (len(nr.Nodos) / 2) {
 				//Tiene mayoria por lo que se proclama lider
+				nr.NextIndex = make([]int, 3)
+				nr.MatchIndex = make([]int, 3)
+
 				nr.canalLider <- true
 			}
 		}
@@ -577,6 +577,14 @@ func pedirVotacion(nr *NodoRaft) {
 			go nr.enviarPeticionVoto(i, &ArgsPeticionVoto{nr.currentTerm, nr.Yo,
 				nr.log[len(nr.log)-1].Index, nr.log[len(nr.log)-1].Term},
 				&respuesta)
+		}
+	}
+
+	if nr.estado == "lider" {
+		for i := 0; i < len(nr.Nodos); i++ {
+			// Inicializamos nextIndex y matchIndex
+			nr.NextIndex[i] = len(nr.log)
+			nr.MatchIndex[i] = len(nr.log) - 1
 		}
 	}
 }
