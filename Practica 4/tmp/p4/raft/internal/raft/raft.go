@@ -99,8 +99,8 @@ type NodoRaft struct {
 	commitIndex int // Indice del último valor comprometido
 	lastApplied int // Indice del último valor aplicado a la maquina de estados
 
-	nextIndex  []int // Para cada nodo la siguiente entrada que tiene que enviar el lider
-	matchIndex []int // Para cada nodo el mayor indice raplicado conocido
+	NextIndex  []int // Para cada nodo la siguiente entrada que tiene que enviar el lider
+	MatchIndex []int // Para cada nodo el mayor indice raplicado conocido
 
 	canalLider    chan bool //Indicativo que es lider
 	canalSeguidor chan bool //Indicativo que es seguidor
@@ -193,6 +193,9 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 		TipoOperacion{},
 	}
 	nr.log = append(nr.log, nuevaEntrada)
+
+	nr.NextIndex = make([]int, 3)
+	nr.MatchIndex = make([]int, 3)
 
 	if kEnableDebugLogs {
 		nombreNodo := nodos[yo].Host() + "_" + nodos[yo].Port()
@@ -328,10 +331,10 @@ func (nr *NodoRaft) enviarAppendEntries(nodo int, mandato int, entrada Entrada, 
 
 	if resultado.Success {
 		*exito++
-		nr.nextIndex[nodo]++
-		nr.matchIndex[nodo]++
+		nr.NextIndex[nodo]++
+		nr.MatchIndex[nodo]++
 	} else {
-		nr.nextIndex[nodo]--
+		nr.NextIndex[nodo]--
 	}
 }
 
