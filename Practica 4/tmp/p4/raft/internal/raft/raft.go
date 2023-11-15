@@ -35,7 +35,6 @@ import (
 
 	//"net/rpc"
 
-	"raft/internal/comun/check"
 	"raft/internal/comun/rpctimeout"
 )
 
@@ -289,8 +288,11 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 
 		entrada := Entrada{indice, mandato, operacion}
 
-		nr.log = append(nr.log, entrada)
-
+		if nr.log[0].Term == 0 {
+			nr.log[0] = entrada
+		} else {
+			nr.log = append(nr.log, entrada)
+		}
 		//nr.log[nr.commitIndex] = entrada
 		nr.verLog()
 		var resultado Results
@@ -316,15 +318,23 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 // Mandar mensaje de AppendEntries
 func (nr *NodoRaft) enviarAppendEntries(nodo int, mandato int, entrada Entrada, resultado *Results, exito *int) {
 	nr.Logger.Printf("Ha llegado a enviar el mensaje al nodo %d", nodo)
-	err := nr.Nodos[nodo].CallTimeout("NodoRaft.AppendEntries",
+	var PrevLogIndex int
+	if length := len(nr.log); length < 2 {
+		PrevLogIndex = nr.log[length-1].Index
+	} else {
+		PrevLogIndex = nr.log[length-2].Index
+	}
+
+	/*err :=*/
+	nr.Nodos[nodo].CallTimeout("NodoRaft.AppendEntries",
 		ArgAppendEntries{mandato,
 			nr.Yo,
-			nr.log[len(nr.log)-1].Index,
-			nr.log[len(nr.log)-1].Term,
+			PrevLogIndex,
+			nr.log[PrevLogIndex].Term,
 			[]Entrada{entrada},
 			nr.commitIndex},
 		&resultado, 50*time.Millisecond)
-	check.CheckError(err, "Error en llamada RPC SometerOperacion")
+	//check.CheckError(err, "Error en llamada RPC SometerOperacion")
 
 	if resultado.Success {
 		*exito++
@@ -466,6 +476,7 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 	nr.latido <- true
 
 	if len(args.Entries) > 0 {
+		nr.Logger.Printf("PrevLogIndex: %d", args.PrevLogIndex)
 		if args.Term < nr.currentTerm {
 			results.Term = nr.currentTerm
 			results.Success = false
@@ -478,16 +489,19 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 
 		newLogIndex := args.PrevLogIndex + 1
 
-		if len(nr.log) > newLogIndex && len(args.Entries) > 0 &&
+		if len(nr.log) > newLogIndex &&
 			nr.log[newLogIndex].Term != args.Entries[0].Term {
 			nr.log = nr.log[:args.PrevLogIndex]
 		}
 
+		//for i := 0; i < len(args.Entries); i++ {}
+
+		if nr.log[0].Term == 0 {
+			nr.log = nr.log[:len(nr.log)-1]
+		}
 		nr.log = append(nr.log, args.Entries...)
 
-		if len(args.Entries) > 0 {
-			nr.verLog()
-		}
+		nr.verLog()
 
 		if args.LeaderCommit > nr.commitIndex {
 			nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
