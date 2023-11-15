@@ -273,7 +273,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	bool, int, string) {
 	nr.Mux.Lock()
 
-	indice := nr.commitIndex
+	indice := len(nr.log)
 	mandato := nr.currentTerm
 	EsLider := nr.Yo == nr.IdLider
 	idLider := -1
@@ -282,13 +282,14 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	nr.Logger.Println("Ha entrado en someterOperación")
 
 	if EsLider {
-		exito := 0
+		exito := 1
 
 		nr.Logger.Println("Ha entrado en el primer if de someterOperación")
 
 		entrada := Entrada{indice, mandato, operacion}
 
 		if nr.log[0].Term == 0 {
+			entrada.Index = 0
 			nr.log[0] = entrada
 		} else {
 			nr.log = append(nr.log, entrada)
@@ -487,14 +488,19 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 			return nil
 		}
 
-		newLogIndex := args.PrevLogIndex + 1
+		if nr.log[0].Term != 0 {
+			for i := 0; i < len(args.Entries); i++ {
+				indexToCheck := args.Entries[i].Index
+				if indexToCheck >= len(nr.log) {
+					break
+				}
 
-		if len(nr.log) > newLogIndex &&
-			nr.log[newLogIndex].Term != args.Entries[0].Term {
-			nr.log = nr.log[:args.PrevLogIndex]
+				if nr.log[indexToCheck].Term != args.Entries[i].Term {
+					nr.log = nr.log[:indexToCheck]
+					break
+				}
+			}
 		}
-
-		//for i := 0; i < len(args.Entries); i++ {}
 
 		if nr.log[0].Term == 0 {
 			nr.log = nr.log[:len(nr.log)-1]
