@@ -342,6 +342,7 @@ func (nr *NodoRaft) enviarAppendEntries(nodo int, mandato int, entrada Entrada, 
 		nr.NextIndex[nodo]++
 		nr.MatchIndex[nodo]++
 	} else {
+		nr.Logger.Println("Se ha restado NextIndex")
 		nr.NextIndex[nodo]--
 	}
 }
@@ -477,12 +478,18 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 	nr.latido <- true
 
 	if len(args.Entries) > 0 {
-		nr.Logger.Printf("PrevLogIndex: %d", args.PrevLogIndex)
+		nr.Logger.Printf("PrevLogIndex: %d y Len: %d", args.PrevLogIndex, len(nr.log))
 		if args.Term < nr.currentTerm {
 			results.Term = nr.currentTerm
 			results.Success = false
 			return nil
-		} else if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm && len(nr.log) > 1 {
+		}
+		if args.PrevLogIndex > len(nr.log) {
+			results.Term = nr.currentTerm
+			results.Success = false
+			return nil
+		}
+		if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm && len(nr.log) > 1 {
 			results.Term = nr.currentTerm
 			results.Success = false
 			return nil
@@ -609,7 +616,7 @@ func pedirVotacion(nr *NodoRaft) {
 	}
 }
 
-func (nr *NodoRaft) enviarLatido(nodo int, args *ArgAppendEntries,
+func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries,
 	reply *Results) bool {
 
 	fallo := nr.Nodos[nodo].CallTimeout("NodoRaft.AppendEntries", args,
@@ -618,11 +625,23 @@ func (nr *NodoRaft) enviarLatido(nodo int, args *ArgAppendEntries,
 	if fallo == nil {
 		//En el caso que se pida voto a un mandato superior
 		if reply.Term > nr.currentTerm {
+			nr.Mux.Lock()
 			nr.currentTerm = reply.Term
 			nr.IdLider = -1
 			nr.canalSeguidor <- true
-
+			nr.Mux.Unlock()
 		}
+
+		/*if reply.Success {
+			nr.Mux.Lock()
+			nr.NextIndex[nodo] = nr.log[len(nr.log)-1].Index
+			nr.MatchIndex[nodo]++
+			nr.Mux.Unlock()
+		} else {
+			nr.Mux.Lock()
+			nr.NextIndex[nodo]--
+			nr.Mux.Unlock()
+		}*/
 
 		return true
 
@@ -636,10 +655,18 @@ func enviarLatidos(nr *NodoRaft) {
 
 	for i := 0; i < len(nr.Nodos); i++ {
 		if nr.Yo != i {
+
+			LastLogIndex := nr.log[len(nr.log)-1].Index
+			entrada := []Entrada{}
+			if nr.log[len(nr.log)-1].Index >= nr.NextIndex[i] {
+				entrada = nr.log[nr.NextIndex[i]:]
+				//nr.Logger.Printf("NextIndex: %d and Len: %d", nr.NextIndex[i], len(nr.log))
+				//LastLogIndex = nr.NextIndex[i] - 1
+			}
 			go nr.enviarLatido(i,
-				&ArgAppendEntries{nr.currentTerm,
-					nr.Yo, nr.log[len(nr.log)-1].Index,
-					nr.log[len(nr.log)-1].Term, []Entrada{},
+				ArgAppendEntries{nr.currentTerm,
+					nr.Yo, LastLogIndex,
+					nr.log[LastLogIndex].Term, entrada,
 					nr.commitIndex}, &respuesta)
 		}
 	}
