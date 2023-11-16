@@ -721,11 +721,11 @@ func enviarLatidos(nr *NodoRaft) {
 
 				if nr.NextIndex[i] < 1 {
 					prevLogIndex = 0
-					prevLogTerm = 0
 				} else {
 					prevLogIndex = nr.NextIndex[i] - 1
-					prevLogTerm = nr.log[prevLogIndex].Term
 				}
+
+				prevLogTerm = nr.log[prevLogIndex].Term
 
 				entrada = nr.log[nr.NextIndex[i]:]
 

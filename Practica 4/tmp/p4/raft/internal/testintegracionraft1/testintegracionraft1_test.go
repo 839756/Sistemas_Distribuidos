@@ -254,6 +254,8 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 	cfg.startDistributedProcesses()
 
+	time.Sleep(3 * time.Second)
+
 	lider := cfg.pruebaUnLider(3)
 
 	operacion1 := raft.TipoOperacion{Operacion: "leer", Clave: "1", Valor: ""}
@@ -264,9 +266,13 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 	cfg.comprobarEstadoRemotoLog(1, 0, 1, operacion1, -1)
 
+	time.Sleep(3 * time.Second)
+
 	cfg.SometerOperacion(lider, operacion2)
 
 	cfg.comprobarEstadoRemotoLog(2, 1, 1, operacion2, -1)
+
+	time.Sleep(3 * time.Second)
 
 	cfg.SometerOperacion(lider, operacion3)
 
@@ -551,6 +557,8 @@ func (cfg *configDespliegue) obtenerEstadoRemotoLog(
 func (cfg *configDespliegue) comprobarEstadoRemotoLog(nOperacion int,
 	indiceDeseado int, terminoDeseado int, operacionDeseada raft.TipoOperacion,
 	desconectado int) {
+
+	time.Sleep(3 * time.Second)
 
 	for i := 0; i < 3; i++ {
 		if i != desconectado {
