@@ -633,7 +633,7 @@ func pedirVotacion(nr *NodoRaft) {
 	lastLogTerm := 0
 
 	if len(nr.log) > 0 {
-		lastLogIndex = nr.log[len(nr.log)-1].Index
+		lastLogIndex = len(nr.log) - 1
 		lastLogTerm = nr.log[lastLogIndex].Term
 	}
 
@@ -693,7 +693,7 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 		return true
 
 	} else {
-		nr.Logger.Println("La llamada ha fallado")
+		nr.Logger.Printf("La llamada ha fallado para %d", nodo)
 		return false
 	}
 }
@@ -717,7 +717,7 @@ func enviarLatidos(nr *NodoRaft) {
 
 			if len(nr.log) > nr.NextIndex[i] {
 
-				nr.Logger.Println("Se envia una entrada")
+				nr.Logger.Printf("Se envia una entrada para %d", i)
 
 				if nr.NextIndex[i] < 1 {
 					prevLogIndex = 0
@@ -732,7 +732,7 @@ func enviarLatidos(nr *NodoRaft) {
 				//nr.Logger.Printf("Para el nodo %d, NextIndex: %d, Len: %d and PrevLogIndex: %d", i, nr.NextIndex[i], len(nr.log), PrevLogIndex)
 			}
 			nr.Mux.Unlock()
-			go nr.enviarLatido(i,
+			nr.enviarLatido(i,
 				ArgAppendEntries{nr.currentTerm,
 					nr.Yo, prevLogIndex,
 					prevLogTerm, entrada,

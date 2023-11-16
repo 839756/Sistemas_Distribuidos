@@ -18,16 +18,26 @@ import (
 )
 
 const (
-	//hosts
+	//hosts_locales
 	MAQUINA1 = "127.0.0.1"
 	MAQUINA2 = "127.0.0.1"
 	MAQUINA3 = "127.0.0.1"
-
+	//hosts_distribuidos
+	/*
+		MAQUINA1 = "192.168.3.10"
+		MAQUINA2 = "192.168.3.11"
+		MAQUINA3 = "192.168.3.12"
+	*/
 	//puertos
 	PUERTOREPLICA1 = "29001"
 	PUERTOREPLICA2 = "29002"
 	PUERTOREPLICA3 = "29003"
-
+	//puertos distribuidos
+	/*
+		PUERTOREPLICA1 = "29120"
+		PUERTOREPLICA2 = "29120"
+		PUERTOREPLICA3 = "29120"
+	*/
 	//nodos replicas
 	REPLICA1 = MAQUINA1 + ":" + PUERTOREPLICA1
 	REPLICA2 = MAQUINA2 + ":" + PUERTOREPLICA2
