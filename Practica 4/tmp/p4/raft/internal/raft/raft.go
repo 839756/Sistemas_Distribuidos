@@ -533,6 +533,10 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 			}
 		}
 
+		//for i := 0; i < len(args.Entries); i++ {
+
+		//}
+
 		nr.log = append(nr.log, args.Entries...)
 
 		nr.verLog()
