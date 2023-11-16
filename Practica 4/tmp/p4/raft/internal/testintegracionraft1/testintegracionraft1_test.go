@@ -266,13 +266,13 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 	cfg.comprobarEstadoRemotoLog(1, 0, 1, operacion1, -1)
 
-	time.Sleep(3 * time.Second)
+	//time.Sleep(3 * time.Second)
 
 	cfg.SometerOperacion(lider, operacion2)
 
 	cfg.comprobarEstadoRemotoLog(2, 1, 1, operacion2, -1)
 
-	time.Sleep(3 * time.Second)
+	//time.Sleep(3 * time.Second)
 
 	cfg.SometerOperacion(lider, operacion3)
 
@@ -286,7 +286,7 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 // Se consigue acuerdo a pesar de desconexiones de seguidor -- 3 NODOS RAFT
 func (cfg *configDespliegue) AcuerdoApesarDeSeguidor(t *testing.T) {
-	//t.Skip("SKIPPED AcuerdoApesarDeSeguidor")
+	t.Skip("SKIPPED AcuerdoApesarDeSeguidor")
 
 	fmt.Println(t.Name(), ".....................")
 

@@ -533,9 +533,13 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 			}
 		}
 
-		//for i := 0; i < len(args.Entries); i++ {
-
-		//}
+		for len(args.Entries) > 0 {
+			if args.Entries[0].Index < len(nr.log) {
+				args.Entries = args.Entries[1:]
+			} else {
+				break
+			}
+		}
 
 		nr.log = append(nr.log, args.Entries...)
 
