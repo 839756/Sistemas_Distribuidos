@@ -235,7 +235,7 @@ func (cfg *configDespliegue) falloAnteriorElegirNuevoLiderTest3(t *testing.T) {
 		}
 	}
 
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(7 * time.Second)
 
 	fmt.Printf("Comprobar nuevo lider\n")
 	cfg.pruebaUnLider(3)
@@ -254,25 +254,19 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 	cfg.startDistributedProcesses()
 
-	time.Sleep(3 * time.Second)
-
 	lider := cfg.pruebaUnLider(3)
 
-	operacion1 := raft.TipoOperacion{Operacion: "leer", Clave: "1", Valor: ""}
-	operacion2 := raft.TipoOperacion{Operacion: "escribir", Clave: "2", Valor: "2"}
-	operacion3 := raft.TipoOperacion{Operacion: "leer", Clave: "3", Valor: ""}
+	operacion1 := raft.TipoOperacion{Operacion: "escribir", Clave: "1", Valor: "1"}
+	operacion2 := raft.TipoOperacion{Operacion: "leer", Clave: "2", Valor: ""}
+	operacion3 := raft.TipoOperacion{Operacion: "escribir", Clave: "3", Valor: "2"}
 
 	cfg.SometerOperacion(lider, operacion1)
 
 	cfg.comprobarEstadoRemotoLog(1, 0, 1, operacion1, -1)
 
-	//time.Sleep(3 * time.Second)
-
 	cfg.SometerOperacion(lider, operacion2)
 
 	cfg.comprobarEstadoRemotoLog(2, 1, 1, operacion2, -1)
-
-	//time.Sleep(3 * time.Second)
 
 	cfg.SometerOperacion(lider, operacion3)
 
@@ -315,6 +309,7 @@ func (cfg *configDespliegue) AcuerdoApesarDeSeguidor(t *testing.T) {
 	cfg.comprobarEstadoRemotoLog(3, 2, 1, operacion3, i)
 
 	// reconectar nodo Raft previamente desconectado y comprobar varios acuerdos
+
 	cfg.reconectarNodo()
 
 	operacion4 := raft.TipoOperacion{Operacion: "escribir", Clave: "4", Valor: "4"}
@@ -352,12 +347,16 @@ func (cfg *configDespliegue) SinAcuerdoPorFallos(t *testing.T) {
 	cfg.desconectarDosSeguidores(lider)
 
 	// Comprobar varios acuerdos con 2 réplicas desconectada
-	/*
-		operacion2 := raft.TipoOperacion{Operacion: "escribir", Clave: "2", Valor: "2"}   <---------------------- COMPROBACIONES
-		operacion3 := raft.TipoOperacion{Operacion: "leer", Clave: "3", Valor: ""}
-	*/
+
+	operacion2 := raft.TipoOperacion{Operacion: "escribir", Clave: "2", Valor: "2"}
+	operacion3 := raft.TipoOperacion{Operacion: "leer", Clave: "3", Valor: ""}
+
+	cfg.SometerOperacionFallo(lider, operacion2)
+
+	cfg.SometerOperacionFallo(lider, operacion3)
 
 	// reconectar lo2 nodos Raft  desconectados y probar varios acuerdos
+
 	cfg.reconectarNodo()
 
 	operacion4 := raft.TipoOperacion{Operacion: "escribir", Clave: "4", Valor: "4"}
@@ -378,17 +377,27 @@ func (cfg *configDespliegue) SinAcuerdoPorFallos(t *testing.T) {
 func (cfg *configDespliegue) SometerConcurrentementeOperaciones(t *testing.T) {
 	t.Skip("SKIPPED SometerConcurrentementeOperaciones")
 
-	// A completar ???
+	fmt.Println(t.Name(), ".....................")
 
-	// un bucle para estabilizar la ejecucion
+	cfg.startDistributedProcesses()
 
 	// Obtener un lider y, a continuación someter una operacion
+	lider := cfg.pruebaUnLider(3)
 
+	operacion := raft.TipoOperacion{Operacion: "escribir", Clave: "1", Valor: "1"}
+
+	cfg.SometerOperacion(lider, operacion)
+	cfg.comprobarEstadoRemotoLog(1, 0, 1, operacion, -1)
+
+	// un bucle para estabilizar la ejecucion
 	// Someter 5  operaciones concurrentes
+	for i := 1; i <= 5; i++ {
+		operacion = raft.TipoOperacion{Operacion: "escribir",
+			Clave: strconv.Itoa(i + 1), Valor: strconv.Itoa(i)}
 
-	// Comprobar estados de nodos Raft, sobre todo
-	// el avance del mandato en curso e indice de registro de cada uno
-	// que debe ser identico entre ellos
+		go cfg.SometerOperacion(lider, operacion)
+
+	}
 }
 
 // --------------------------------------------------------------------------
@@ -433,7 +442,7 @@ func (cfg *configDespliegue) obtenerEstadoRemoto(
 	indiceNodo int) (int, int, bool, int) {
 	var reply raft.EstadoRemoto
 	err := cfg.nodosRaft[indiceNodo].CallTimeout("NodoRaft.ObtenerEstadoNodo",
-		raft.Vacio{}, &reply, 10*time.Millisecond)
+		raft.Vacio{}, &reply, 3*time.Second)
 	check.CheckError(err, "Error en llamada RPC ObtenerEstadoRemoto")
 
 	return reply.IdNodo, reply.Mandato, reply.EsLider, reply.IdLider
@@ -455,7 +464,7 @@ func (cfg *configDespliegue) startDistributedProcesses() {
 	}
 
 	// aproximadamente 500 ms para cada arranque por ssh en portatil
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(2 * time.Second)
 }
 
 func (cfg *configDespliegue) reconectarNodo() {
@@ -470,7 +479,7 @@ func (cfg *configDespliegue) reconectarNodo() {
 		}
 	}
 
-	time.Sleep(4000 * time.Millisecond) //Espera a que se reconecte
+	time.Sleep(10000 * time.Millisecond) //Espera a que se reconecte
 }
 
 func (cfg *configDespliegue) stopDistributedProcesses() {
@@ -486,20 +495,18 @@ func (cfg *configDespliegue) stopDistributedProcesses() {
 func (cfg *configDespliegue) desconectarSeguidor(lider int) int {
 	var reply raft.Vacio
 
-	parado1 := false
 	for i, endPoint := range cfg.nodosRaft {
-		if i != lider && parado1 == false {
+		if i != lider {
 			err := endPoint.CallTimeout("NodoRaft.ParaNodo",
 				raft.Vacio{}, &reply, 10*time.Millisecond)
 			check.CheckError(err, "Error en llamada RPC Para nodo")
-			parado1 = true
 			cfg.conectados[i] = false
 			fmt.Println("Seguidor desconectado", i)
 			return i
 		}
 	}
 
-	time.Sleep(2000 * time.Millisecond) //Espera a que se pare
+	time.Sleep(12000 * time.Millisecond) //Espera a que se pare
 	return -1
 }
 
@@ -516,7 +523,7 @@ func (cfg *configDespliegue) desconectarDosSeguidores(lider int) {
 		}
 	}
 
-	time.Sleep(2000 * time.Millisecond) //Espera a que se pare
+	time.Sleep(12000 * time.Millisecond) //Espera a que se pare
 }
 
 // Comprobar estado remoto de un nodo con respecto a un estado prefijado
@@ -548,7 +555,7 @@ func (cfg *configDespliegue) obtenerEstadoRemotoLog(
 	indiceNodo int) (int, int, int, raft.TipoOperacion) {
 	var reply raft.EstadoLog
 	err := cfg.nodosRaft[indiceNodo].CallTimeout("NodoRaft.ObtenerEstadoLogRaft",
-		raft.Vacio{}, &reply, 10*time.Millisecond)
+		raft.Vacio{}, &reply, 3*time.Second)
 	check.CheckError(err, "Error en llamada RPC ObtenerEstadoLogRaft")
 
 	return reply.IdNodo, reply.Index, reply.Term, reply.Op
@@ -575,5 +582,20 @@ func (cfg *configDespliegue) comprobarEstadoRemotoLog(nOperacion int,
 	}
 
 	cfg.t.Log("Operacion ", nOperacion, " correcta")
+
+}
+
+func (cfg *configDespliegue) SometerOperacionFallo(idLider int, operacion raft.TipoOperacion) {
+
+	var reply raft.ResultadoRemoto
+
+	err := cfg.nodosRaft[idLider].CallTimeout("NodoRaft.SometerOperacionRaft",
+		operacion, &reply, 5*time.Second)
+
+	if err == nil {
+		cfg.t.Fatalf("Se ha llegado a acuerdo")
+	} else {
+		fmt.Println("OK, no se ha llegado a acuerdo")
+	}
 
 }

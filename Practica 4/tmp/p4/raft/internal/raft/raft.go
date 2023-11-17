@@ -101,9 +101,10 @@ type NodoRaft struct {
 	NextIndex  []int // Para cada nodo la siguiente entrada que tiene que enviar el lider
 	MatchIndex []int // Para cada nodo el mayor indice raplicado conocido
 
-	canalLider    chan bool //Indicativo que es lider
-	canalSeguidor chan bool //Indicativo que es seguidor
-	latido        chan bool //Latidos que da el lider para indicar que esta vivo
+	canalLider       chan bool //Indicativo que es lider
+	canalSeguidor    chan bool //Indicativo que es seguidor
+	latido           chan bool //Latidos que da el lider para indicar que esta vivo
+	AplicarOperacion chan AplicaOperacion
 }
 
 func tiempoEsperaAleatorio() time.Duration {
@@ -119,6 +120,8 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 	for {
 
 		if nr.lastApplied < nr.commitIndex {
+			nr.AplicarOperacion <- AplicaOperacion{nr.lastApplied,
+				nr.log[nr.lastApplied].Op}
 			nr.lastApplied++
 		}
 
@@ -204,6 +207,7 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	nr.canalLider = make(chan bool)
 	nr.canalSeguidor = make(chan bool)
 	nr.latido = make(chan bool)
+	nr.AplicarOperacion = canalAplicarOperacion
 	nr.log = []Entrada{}
 
 	if kEnableDebugLogs {
@@ -513,11 +517,13 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 		}
 
 		if len(nr.log) > 0 {
-			if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm && len(nr.log) > 1 {
-				results.Term = nr.currentTerm
-				results.Success = false
-				nr.Mux.Unlock()
-				return nil
+			if args.PrevLogIndex > -1 {
+				if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm && len(nr.log) > 1 {
+					results.Term = nr.currentTerm
+					results.Success = false
+					nr.Mux.Unlock()
+					return nil
+				}
 			}
 
 			for i := 0; i < len(args.Entries); i++ {
@@ -534,7 +540,7 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 		}
 
 		for len(args.Entries) > 0 {
-			if args.Entries[0].Index < len(nr.log) {
+			if len(nr.log) >= args.Entries[0].Index {
 				args.Entries = args.Entries[1:]
 			} else {
 				break
@@ -728,14 +734,16 @@ func enviarLatidos(nr *NodoRaft) {
 				nr.Logger.Printf("Se envia una entrada para %d", i)
 
 				if nr.NextIndex[i] < 1 {
-					prevLogIndex = 0
+					prevLogIndex = -1
+					prevLogTerm = 0
+					entrada = nr.log[0:]
 				} else {
 					prevLogIndex = nr.NextIndex[i] - 1
+					prevLogTerm = nr.log[prevLogIndex].Term
+					entrada = nr.log[nr.NextIndex[i]:]
 				}
 
-				prevLogTerm = nr.log[prevLogIndex].Term
-
-				entrada = nr.log[nr.NextIndex[i]:]
+				//prevLogTerm = nr.log[prevLogIndex].Term
 
 				//nr.Logger.Printf("Para el nodo %d, NextIndex: %d, Len: %d and PrevLogIndex: %d", i, nr.NextIndex[i], len(nr.log), PrevLogIndex)
 			}
