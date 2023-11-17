@@ -498,7 +498,7 @@ func (cfg *configDespliegue) desconectarSeguidor(lider int) int {
 	for i, endPoint := range cfg.nodosRaft {
 		if i != lider {
 			err := endPoint.CallTimeout("NodoRaft.ParaNodo",
-				raft.Vacio{}, &reply, 10*time.Millisecond)
+				raft.Vacio{}, &reply, 3*time.Second)
 			check.CheckError(err, "Error en llamada RPC Para nodo")
 			cfg.conectados[i] = false
 			fmt.Println("Seguidor desconectado", i)

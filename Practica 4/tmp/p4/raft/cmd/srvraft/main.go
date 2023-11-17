@@ -41,9 +41,8 @@ func main() {
 	l, err := net.Listen("tcp", os.Args[2:][me])
 	check.CheckError(err, "Main listen error:")
 
-	for {
-		rpc.Accept(l)
-	}
+	rpc.Accept(l)
+
 }
 
 func aplicaOp(datos map[string]string, AplicaOpChan chan raft.AplicaOperacion) {

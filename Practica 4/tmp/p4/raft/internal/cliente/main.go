@@ -16,6 +16,7 @@ func main() {
 	var reply raft.ResultadoRemoto
 
 	cliente, err := rpc.Dial("tcp", "localhost:29001")
+	//cliente, err := rpc.Dial("tcp", "192.168.3.9:29120")
 	check.CheckError(err, "No se ha podido conectar al servidor")
 
 	err = cliente.Call("NodoRaft.SometerOperacionRaft", raft.TipoOperacion{Operacion: "leer", Clave: "1", Valor: "1"}, &reply)

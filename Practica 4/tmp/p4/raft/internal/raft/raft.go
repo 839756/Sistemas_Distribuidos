@@ -508,7 +508,8 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 			nr.Mux.Unlock()
 			return nil
 		}
-		if args.PrevLogIndex > len(nr.log) {
+
+		if args.PrevLogIndex >= len(nr.log) && !(args.PrevLogIndex == 0 && len(nr.log) == 0) {
 			nr.Logger.Println("Se ha metido en la segunda condicion")
 			results.Term = nr.currentTerm
 			results.Success = false
@@ -518,11 +519,13 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 
 		if len(nr.log) > 0 {
 			if args.PrevLogIndex > -1 {
-				if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm && len(nr.log) > 1 {
-					results.Term = nr.currentTerm
-					results.Success = false
-					nr.Mux.Unlock()
-					return nil
+				if len(nr.log) > 1 {
+					if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
+						results.Term = nr.currentTerm
+						results.Success = false
+						nr.Mux.Unlock()
+						return nil
+					}
 				}
 			}
 
@@ -537,13 +540,12 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 					break
 				}
 			}
-		}
-
-		for len(args.Entries) > 0 {
-			if len(nr.log) >= args.Entries[0].Index {
-				args.Entries = args.Entries[1:]
-			} else {
-				break
+			for len(args.Entries) > 0 {
+				if args.Entries[0].Index <= len(nr.log) {
+					args.Entries = args.Entries[1:]
+				} else {
+					break
+				}
 			}
 		}
 
@@ -556,6 +558,9 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 		}
 	}
 	results.Success = true
+	if results.Success {
+		nr.Logger.Println("Succes es true")
+	}
 	results.Term = nr.currentTerm
 
 	nr.Mux.Unlock()
@@ -742,8 +747,6 @@ func enviarLatidos(nr *NodoRaft) {
 					prevLogTerm = nr.log[prevLogIndex].Term
 					entrada = nr.log[nr.NextIndex[i]:]
 				}
-
-				//prevLogTerm = nr.log[prevLogIndex].Term
 
 				//nr.Logger.Printf("Para el nodo %d, NextIndex: %d, Len: %d and PrevLogIndex: %d", i, nr.NextIndex[i], len(nr.log), PrevLogIndex)
 			}
