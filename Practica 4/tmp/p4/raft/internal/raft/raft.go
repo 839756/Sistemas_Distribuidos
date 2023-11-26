@@ -116,10 +116,11 @@ func tiempoEsperaAleatorio() time.Duration {
 }
 
 func maquinaEstadosNodo(nr *NodoRaft) {
-	time.Sleep(3 * time.Second)
+	//time.Sleep(3 * time.Second)
 	for {
 
 		if nr.lastApplied < nr.commitIndex {
+			fmt.Printf("LastApplied es %d y commitIndex es %d\n", nr.lastApplied, nr.commitIndex)
 			nr.AplicarOperacion <- AplicaOperacion{nr.lastApplied,
 				nr.log[nr.lastApplied].Op}
 			nr.lastApplied++
@@ -167,12 +168,13 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 func (nr *NodoRaft) mantenerCommitIndex() {
 	exito := 0
 	for i := 0; i < len(nr.Nodos); i++ {
-		if nr.NextIndex[i] > nr.commitIndex {
+		if nr.MatchIndex[i] > nr.commitIndex {
 			exito++
 		}
 		if exito > len(nr.Nodos)/2 {
 			nr.commitIndex++
 			nr.Logger.Printf("Commit Index ahora es %d", nr.commitIndex)
+			fmt.Printf("Commit Index ahora es %d\n", nr.commitIndex)
 			break
 		}
 	}
@@ -292,7 +294,7 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	bool, int, string) {
 	nr.Mux.Lock()
 
-	indice := len(nr.log)
+	indice := len(nr.log) + 1
 	mandato := nr.currentTerm
 	EsLider := nr.Yo == nr.IdLider
 	idLider := -1
@@ -301,73 +303,21 @@ func (nr *NodoRaft) someterOperacion(operacion TipoOperacion) (int, int,
 	nr.Logger.Println("Ha entrado en someterOperación")
 
 	if EsLider {
-		//exito := 1
-
-		//nr.Logger.Println("Ha entrado en el primer if de someterOperación")
 
 		entrada := Entrada{indice, mandato, operacion}
-		/*
-			if nr.log[0].Term == 0 {
-				entrada.Index = 0
-				nr.log[0] = entrada
-			} else { */
+
 		nr.log = append(nr.log, entrada)
-		//}
-		//nr.log[nr.commitIndex] = entrada
+
 		nr.verLog()
 
-		nr.NextIndex[nr.Yo] = len(nr.log)
-		/*
-			var resultado Results
-			for i := 0; i < len(nr.Nodos); i++ {
-				if i != nr.Yo {
-					nr.enviarAppendEntries(i, mandato, entrada, &resultado, &exito)
-				}
-			}
+		nr.NextIndex[nr.Yo] = len(nr.log) + 1
 
-			if exito > len(nr.Nodos)/2 {
-				nr.commitIndex++
-				nr.Logger.Printf("Commit Index ahora es %d", nr.commitIndex)
-			}
-		*/
 		idLider = nr.Yo
 	}
 
 	nr.Mux.Unlock()
 
 	return indice, mandato, EsLider, idLider, valorADevolver
-}
-
-//------------------------------------------------------------------------
-// Mandar mensaje de AppendEntries
-func (nr *NodoRaft) enviarAppendEntries(nodo int, mandato int, entrada Entrada, resultado *Results, exito *int) {
-	nr.Logger.Printf("Ha llegado a enviar el mensaje al nodo %d", nodo)
-	var PrevLogIndex int
-	if length := len(nr.log); length < 2 {
-		PrevLogIndex = nr.log[length-1].Index
-	} else {
-		PrevLogIndex = nr.log[length-2].Index
-	}
-
-	/*err :=*/
-	nr.Nodos[nodo].CallTimeout("NodoRaft.AppendEntries",
-		ArgAppendEntries{mandato,
-			nr.Yo,
-			PrevLogIndex,
-			nr.log[PrevLogIndex].Term,
-			[]Entrada{entrada},
-			nr.commitIndex},
-		&resultado, 50*time.Millisecond)
-	//check.CheckError(err, "Error en llamada RPC SometerOperacion")
-
-	if resultado.Success {
-		*exito++
-		nr.NextIndex[nodo] = len(nr.log)
-		nr.MatchIndex[nodo]++
-	} else {
-		//nr.Logger.Println("Se ha restado NextIndex")
-		nr.NextIndex[nodo]--
-	}
 }
 
 //------------------------------------------------------------------------
@@ -500,67 +450,96 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 
 	nr.latido <- true
 
+	if args.Term < nr.currentTerm {
+		results.Term = nr.currentTerm
+		results.Success = false
+		nr.Mux.Unlock()
+		return nil
+	}
+
 	if len(args.Entries) > 0 {
 		nr.Logger.Printf("PrevLogIndex: %d y Len: %d", args.PrevLogIndex, len(nr.log))
-		if args.Term < nr.currentTerm {
-			results.Term = nr.currentTerm
-			results.Success = false
-			nr.Mux.Unlock()
-			return nil
-		}
+		results.Success = false
 
-		if args.PrevLogIndex >= len(nr.log) && !(args.PrevLogIndex == 0 && len(nr.log) == 0) {
-			nr.Logger.Println("Se ha metido en la segunda condicion")
-			results.Term = nr.currentTerm
-			results.Success = false
-			nr.Mux.Unlock()
-			return nil
-		}
+		if args.PrevLogIndex == 0 || (args.PrevLogIndex <= len(nr.log) && args.PrevLogTerm == nr.log[args.PrevLogIndex-1].Term) {
+			results.Success = true
 
-		if len(nr.log) > 0 {
-			if args.PrevLogIndex > -1 {
-				if len(nr.log) > 1 {
-					if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
-						results.Term = nr.currentTerm
-						results.Success = false
-						nr.Mux.Unlock()
-						return nil
+			InsertIndex := args.PrevLogIndex
+			newEntries := 0
+
+			for {
+				if InsertIndex >= len(nr.log) || newEntries >= len(args.Entries) {
+					break
+				}
+				if nr.log[InsertIndex].Term != args.Entries[newEntries].Term {
+					break
+				}
+				InsertIndex++
+				newEntries++
+			}
+
+			if newEntries < len(args.Entries) {
+				nr.log = append(nr.log[:InsertIndex], args.Entries[newEntries:]...)
+			}
+
+			if args.LeaderCommit > nr.commitIndex {
+				nr.commitIndex = min(args.LeaderCommit, len(nr.log))
+			}
+
+			nr.verLog()
+		}
+		/*
+			if args.PrevLogIndex >= len(nr.log) && !(args.PrevLogIndex == 0 && len(nr.log) == 0) {
+				nr.Logger.Println("Se ha metido en la segunda condicion")
+				results.Term = nr.currentTerm
+				results.Success = false
+				nr.Mux.Unlock()
+				return nil
+			}
+
+			if len(nr.log) > 0 {
+				if args.PrevLogIndex > -1 {
+					if len(nr.log) > 1 {
+						if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
+							results.Term = nr.currentTerm
+							results.Success = false
+							nr.Mux.Unlock()
+							return nil
+						}
 					}
 				}
-			}
 
-			for i := 0; i < len(args.Entries); i++ {
-				indexToCheck := args.Entries[i].Index
-				if indexToCheck >= len(nr.log) {
-					break
+				for i := 0; i < len(args.Entries); i++ {
+					indexToCheck := args.Entries[i].Index
+					if indexToCheck >= len(nr.log) {
+						break
+					}
+
+					if nr.log[indexToCheck].Term != args.Entries[i].Term {
+						nr.log = nr.log[:indexToCheck]
+						break
+					}
+				}
+				for len(args.Entries) > 0 {
+					if args.Entries[0].Index <= len(nr.log) {
+						args.Entries = args.Entries[1:]
+					} else {
+						break
+					}
 				}
 
-				if nr.log[indexToCheck].Term != args.Entries[i].Term {
-					nr.log = nr.log[:indexToCheck]
-					break
-				}
 			}
-			for len(args.Entries) > 0 {
-				if args.Entries[0].Index <= len(nr.log) {
-					args.Entries = args.Entries[1:]
-				} else {
-					break
-				}
+
+			nr.log = append(nr.log, args.Entries...)
+
+			nr.verLog()
+
+			if args.LeaderCommit > nr.commitIndex {
+				nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
 			}
-		}
-
-		nr.log = append(nr.log, args.Entries...)
-
-		nr.verLog()
-
-		if args.LeaderCommit > nr.commitIndex {
-			nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
-		}
+		*/
 	}
-	results.Success = true
-	if results.Success {
-		nr.Logger.Println("Succes es true")
-	}
+
 	results.Term = nr.currentTerm
 
 	nr.Mux.Unlock()
@@ -629,7 +608,7 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 				for i := 0; i < len(nr.Nodos); i++ {
 					// Inicializamos nextIndex y matchIndex
 					nr.Mux.Lock()
-					nr.NextIndex[i] = len(nr.log)
+					nr.NextIndex[i] = len(nr.log) + 1
 					nr.MatchIndex[i] = 0
 
 					nr.Logger.Printf("Para el nodo: %d NextIndex: %d y len: %d", i, nr.NextIndex[i], len(nr.log))
@@ -652,8 +631,8 @@ func pedirVotacion(nr *NodoRaft) {
 	lastLogTerm := 0
 
 	if len(nr.log) > 0 {
-		lastLogIndex = len(nr.log) - 1
-		lastLogTerm = nr.log[lastLogIndex].Term
+		lastLogIndex = len(nr.log)
+		lastLogTerm = nr.log[lastLogIndex-1].Term
 	}
 
 	for i := 0; i < len(nr.Nodos); i++ {
@@ -676,31 +655,27 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 		nr.Mux.Lock()
 		//En el caso que se pida voto a un mandato superior
 		if reply.Term > nr.currentTerm {
-			//nr.Mux.Lock()
 			nr.currentTerm = reply.Term
 			nr.IdLider = -1
 			nr.canalSeguidor <- true
-			//nr.Mux.Unlock()
 		}
 
 		if len(args.Entries) > 0 {
 			if reply.Success {
-				//nr.Mux.Lock()
 				lenght := len(nr.log)
-				nr.NextIndex[nodo] = lenght
-				if lenght > 1 {
-					nr.MatchIndex[nodo] = lenght - 1
-				} else {
-					nr.MatchIndex[nodo] = 0
-				}
-				//nr.Mux.Unlock()
+				nr.NextIndex[nodo] = lenght + 1
+				//if lenght > 1 {
+				nr.MatchIndex[nodo] = lenght
+				//} else {
+				//	nr.MatchIndex[nodo] = 0
+				//}
 
 			} else {
 				//nr.Mux.Lock()
 				nr.Logger.Println("")
 				nr.Logger.Printf("Para el nodo %d", nodo)
 				nr.Logger.Printf("Se ha restado NextIndex, antes: %d", nr.NextIndex[nodo])
-				if nr.NextIndex[nodo] > 0 {
+				if nr.NextIndex[nodo] > 2 {
 					nr.NextIndex[nodo]--
 				}
 				nr.Logger.Printf("Nuevo NextIndex: %d", nr.NextIndex[nodo])
@@ -726,8 +701,8 @@ func enviarLatidos(nr *NodoRaft) {
 			prevLogTerm := 0
 
 			if lenght := len(nr.log); lenght > 0 {
-				prevLogIndex = lenght - 1
-				prevLogTerm = nr.log[prevLogIndex].Term
+				prevLogIndex = lenght
+				prevLogTerm = nr.log[prevLogIndex-1].Term
 			}
 
 			entrada := []Entrada{}
@@ -738,14 +713,14 @@ func enviarLatidos(nr *NodoRaft) {
 
 				nr.Logger.Printf("Se envia una entrada para %d", i)
 
-				if nr.NextIndex[i] < 1 {
-					prevLogIndex = -1
+				if nr.NextIndex[i] < 2 {
+					prevLogIndex = 0
 					prevLogTerm = 0
 					entrada = nr.log[0:]
 				} else {
 					prevLogIndex = nr.NextIndex[i] - 1
-					prevLogTerm = nr.log[prevLogIndex].Term
-					entrada = nr.log[nr.NextIndex[i]:]
+					prevLogTerm = nr.log[prevLogIndex-1].Term
+					entrada = nr.log[nr.NextIndex[i]-1:]
 				}
 
 				//nr.Logger.Printf("Para el nodo %d, NextIndex: %d, Len: %d and PrevLogIndex: %d", i, nr.NextIndex[i], len(nr.log), PrevLogIndex)
