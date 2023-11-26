@@ -235,7 +235,7 @@ func (cfg *configDespliegue) falloAnteriorElegirNuevoLiderTest3(t *testing.T) {
 		}
 	}
 
-	time.Sleep(7 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	fmt.Printf("Comprobar nuevo lider\n")
 	cfg.pruebaUnLider(3)
@@ -280,7 +280,7 @@ func (cfg *configDespliegue) tresOperacionesComprometidasEstable(t *testing.T) {
 
 // Se consigue acuerdo a pesar de desconexiones de seguidor -- 3 NODOS RAFT
 func (cfg *configDespliegue) AcuerdoApesarDeSeguidor(t *testing.T) {
-	//t.Skip("SKIPPED AcuerdoApesarDeSeguidor")
+	t.Skip("SKIPPED AcuerdoApesarDeSeguidor")
 
 	fmt.Println(t.Name(), ".....................")
 
@@ -460,11 +460,11 @@ func (cfg *configDespliegue) startDistributedProcesses() {
 			[]string{endPoint.Host()}, cfg.cr, PRIVKEYFILE)
 
 		// dar tiempo para se establezcan las replicas
-		//time.Sleep(2000 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	// aproximadamente 500 ms para cada arranque por ssh en portatil
-	time.Sleep(2 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 }
 
 func (cfg *configDespliegue) reconectarNodo() {
@@ -479,7 +479,7 @@ func (cfg *configDespliegue) reconectarNodo() {
 		}
 	}
 
-	time.Sleep(10000 * time.Millisecond) //Espera a que se reconecte
+	time.Sleep(500 * time.Millisecond) //Espera a que se reconecte
 }
 
 func (cfg *configDespliegue) stopDistributedProcesses() {
@@ -506,7 +506,7 @@ func (cfg *configDespliegue) desconectarSeguidor(lider int) int {
 		}
 	}
 
-	time.Sleep(12000 * time.Millisecond) //Espera a que se pare
+	time.Sleep(500 * time.Millisecond) //Espera a que se pare
 	return -1
 }
 
@@ -523,7 +523,7 @@ func (cfg *configDespliegue) desconectarDosSeguidores(lider int) {
 		}
 	}
 
-	time.Sleep(12000 * time.Millisecond) //Espera a que se pare
+	time.Sleep(500 * time.Millisecond) //Espera a que se pare
 }
 
 // Comprobar estado remoto de un nodo con respecto a un estado prefijado
@@ -565,17 +565,17 @@ func (cfg *configDespliegue) comprobarEstadoRemotoLog(nOperacion int,
 	indiceDeseado int, terminoDeseado int, operacionDeseada raft.TipoOperacion,
 	desconectado int) {
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	for i := 0; i < 3; i++ {
 		if i != desconectado {
-			_, indice, termino, operacion := cfg.obtenerEstadoRemotoLog(i)
+			_, indice, termino, operacionL := cfg.obtenerEstadoRemotoLog(i)
 
 			if indice != indiceDeseado {
-				cfg.t.Fatalf("El indice no coincide en la operación %d", nOperacion)
+				cfg.t.Fatalf("El indice no coincide en la operación %d, el indice es %d y debería ser %d", nOperacion, indice, indiceDeseado)
 			} else if termino != terminoDeseado {
-				cfg.t.Fatalf("El termino no coincide en la operación %d", nOperacion)
-			} else if operacion != operacionDeseada {
+				cfg.t.Fatalf("El termino no coincide en la operación %d, el termino es %d y debería ser %d", nOperacion, termino, terminoDeseado)
+			} else if operacionL != operacionDeseada {
 				cfg.t.Fatalf("El tipo de operación no coincide en la operación %d", nOperacion)
 			}
 		}

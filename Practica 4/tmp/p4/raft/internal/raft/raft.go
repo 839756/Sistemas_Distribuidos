@@ -116,7 +116,7 @@ func tiempoEsperaAleatorio() time.Duration {
 }
 
 func maquinaEstadosNodo(nr *NodoRaft) {
-	//time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 	for {
 
 		if nr.lastApplied < nr.commitIndex {
