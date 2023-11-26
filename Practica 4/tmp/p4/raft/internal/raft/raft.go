@@ -488,56 +488,6 @@ func (nr *NodoRaft) AppendEntries(args *ArgAppendEntries,
 
 			nr.verLog()
 		}
-		/*
-			if args.PrevLogIndex >= len(nr.log) && !(args.PrevLogIndex == 0 && len(nr.log) == 0) {
-				nr.Logger.Println("Se ha metido en la segunda condicion")
-				results.Term = nr.currentTerm
-				results.Success = false
-				nr.Mux.Unlock()
-				return nil
-			}
-
-			if len(nr.log) > 0 {
-				if args.PrevLogIndex > -1 {
-					if len(nr.log) > 1 {
-						if nr.log[args.PrevLogIndex].Term != args.PrevLogTerm {
-							results.Term = nr.currentTerm
-							results.Success = false
-							nr.Mux.Unlock()
-							return nil
-						}
-					}
-				}
-
-				for i := 0; i < len(args.Entries); i++ {
-					indexToCheck := args.Entries[i].Index
-					if indexToCheck >= len(nr.log) {
-						break
-					}
-
-					if nr.log[indexToCheck].Term != args.Entries[i].Term {
-						nr.log = nr.log[:indexToCheck]
-						break
-					}
-				}
-				for len(args.Entries) > 0 {
-					if args.Entries[0].Index <= len(nr.log) {
-						args.Entries = args.Entries[1:]
-					} else {
-						break
-					}
-				}
-
-			}
-
-			nr.log = append(nr.log, args.Entries...)
-
-			nr.verLog()
-
-			if args.LeaderCommit > nr.commitIndex {
-				nr.commitIndex = min(args.LeaderCommit, len(nr.log)-1)
-			}
-		*/
 	}
 
 	results.Term = nr.currentTerm
@@ -664,23 +614,16 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 			if reply.Success {
 				lenght := len(nr.log)
 				nr.NextIndex[nodo] = lenght + 1
-				//if lenght > 1 {
 				nr.MatchIndex[nodo] = lenght
-				//} else {
-				//	nr.MatchIndex[nodo] = 0
-				//}
-
 			} else {
-				//nr.Mux.Lock()
 				nr.Logger.Println("")
 				nr.Logger.Printf("Para el nodo %d", nodo)
 				nr.Logger.Printf("Se ha restado NextIndex, antes: %d", nr.NextIndex[nodo])
-				if nr.NextIndex[nodo] > 2 {
+				if nr.NextIndex[nodo] > 1 {
 					nr.NextIndex[nodo]--
 				}
 				nr.Logger.Printf("Nuevo NextIndex: %d", nr.NextIndex[nodo])
 				nr.Logger.Println("")
-				//nr.Mux.Unlock()
 			}
 		}
 		nr.Mux.Unlock()
