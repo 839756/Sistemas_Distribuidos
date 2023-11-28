@@ -420,6 +420,7 @@ func (nr *NodoRaft) PedirVoto(peticion *ArgsPeticionVoto,
 		nr.voteFor == peticion.CandidateId) &&
 		peticion.LastLogIndex >= nr.lastApplied {
 
+		fmt.Printf("Se ha concedido un voto a %d\n", peticion.CandidateId)
 		nr.voteFor = peticion.CandidateId
 		reply.VoteGranted = true
 		reply.Term = nr.currentTerm
@@ -552,6 +553,7 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 		} else if reply.VoteGranted { //Se recibe voto
 			nr.votos++
 			if nr.votos > (len(nr.Nodos) / 2) {
+				fmt.Println("Se ha proclamado lider")
 				//Tiene mayoria por lo que se proclama lider
 				nr.NextIndex = make([]int, 3)
 				nr.MatchIndex = make([]int, 3)
