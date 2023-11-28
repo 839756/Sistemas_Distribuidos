@@ -542,6 +542,7 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 	fallo := nr.Nodos[nodo].CallTimeout("NodoRaft.PedirVoto", args,
 		reply, 50*time.Millisecond)
 
+	nr.Mux.Lock()
 	if fallo == nil {
 		//En el caso que se pida voto a un mandato superior
 		if reply.Term > nr.currentTerm {
@@ -557,20 +558,21 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 
 				for i := 0; i < len(nr.Nodos); i++ {
 					// Inicializamos nextIndex y matchIndex
-					nr.Mux.Lock()
 					nr.NextIndex[i] = len(nr.log) + 1
 					nr.MatchIndex[i] = 0
 
 					nr.Logger.Printf("Para el nodo: %d NextIndex: %d y len: %d", i, nr.NextIndex[i], len(nr.log))
-					nr.Mux.Unlock()
+
 				}
 
 				nr.canalLider <- true
 			}
 		}
+		nr.Mux.Unlock()
 		return true
 
 	} else {
+		nr.Mux.Unlock()
 		return false
 	}
 }
