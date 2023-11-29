@@ -420,35 +420,54 @@ type RespuestaPeticionVoto struct {
 func (nr *NodoRaft) PedirVoto(peticion *ArgsPeticionVoto,
 	reply *RespuestaPeticionVoto) error {
 	nr.Mux.Lock()
-
-	lastLogIndex := len(nr.log)
-	lastLogTerm := 0
-	if lastLogIndex > 0 {
-		lastLogTerm = nr.log[lastLogIndex-1].Term
-	}
+	fmt.Printf("LastLogTerm %d , LastLogIndex %d\n", peticion.LastLogTerm, peticion.LastLogIndex)
 	// Recibir respuesta
-	if peticion.Term > nr.currentTerm {
-		nr.canalSeguidor <- true
-		nr.currentTerm = peticion.Term
-		nr.voteFor = -1
-	}
-
-	if nr.currentTerm == peticion.Term &&
-		(nr.voteFor == IntNOINICIALIZADO || nr.voteFor == peticion.CandidateId) &&
-		(peticion.LastLogTerm > lastLogTerm ||
-			(peticion.LastLogTerm == lastLogTerm && peticion.LastLogIndex >= lastLogIndex)) {
-		reply.VoteGranted = true
-		nr.voteFor = peticion.CandidateId
-
-	} else {
+	if peticion.Term <= nr.currentTerm {
 		reply.VoteGranted = false
-	}
+		reply.Term = nr.currentTerm
+	} else if peticion.Term == nr.currentTerm && peticion.CandidateId != nr.voteFor {
+		reply.Term = nr.currentTerm
+		reply.VoteGranted = false
+	} else if peticion.Term > nr.currentTerm {
 
-	reply.Term = nr.currentTerm
+		fmt.Printf("El termino del candidato: %d, el termino mio: %d", peticion.Term, nr.currentTerm)
+
+		if len(nr.log) == 0 || nr.mejorLider(peticion.LastLogTerm, peticion.LastLogIndex) {
+			fmt.Printf("Se ha concedido un voto a %d\n", peticion.CandidateId)
+			nr.currentTerm = peticion.Term
+			nr.voteFor = peticion.CandidateId
+			reply.Term = nr.currentTerm
+			reply.VoteGranted = true
+		} else {
+			nr.currentTerm = peticion.Term
+			reply.Term = nr.currentTerm
+			reply.VoteGranted = false
+		}
+
+		if nr.estado == "candidato" || nr.estado == "lider" {
+			nr.canalSeguidor <- true
+		}
+	}
 
 	nr.Mux.Unlock()
 
 	return nil
+}
+
+// -----------------------------------------------------------------------------
+// Función auxiliar para pedir voto
+
+func (nr *NodoRaft) mejorLider(lastLogTerm int, lastLogIndex int) bool {
+
+	if lastLogTerm > nr.log[len(nr.log)-1].Term {
+		return true
+	} else if lastLogTerm == nr.log[len(nr.log)-1].Term {
+		if lastLogIndex >= len(nr.log)-1 {
+			return true
+		}
+	}
+
+	return false
 }
 
 type ArgAppendEntries struct {
