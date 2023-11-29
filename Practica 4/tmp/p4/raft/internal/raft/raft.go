@@ -212,6 +212,10 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	nr.AplicarOperacion = canalAplicarOperacion
 	nr.log = []Entrada{}
 
+	//Canales para el lider
+	nr.NextIndex = make([]int, 3)
+	nr.MatchIndex = make([]int, 3)
+
 	if kEnableDebugLogs {
 		nombreNodo := nodos[yo].Host() + "_" + nodos[yo].Port()
 		logPrefix := fmt.Sprintf("%s", nombreNodo)
@@ -411,20 +415,34 @@ type RespuestaPeticionVoto struct {
 //
 func (nr *NodoRaft) PedirVoto(peticion *ArgsPeticionVoto,
 	reply *RespuestaPeticionVoto) error {
+	nr.Mux.Lock()
 
-	// Recibir respuesta
-	if peticion.Term <= nr.currentTerm {
-		reply.VoteGranted = false
-		reply.Term = nr.currentTerm
-	} else if (nr.voteFor == IntNOINICIALIZADO ||
-		nr.voteFor == peticion.CandidateId) &&
-		peticion.LastLogIndex >= nr.lastApplied {
-
-		fmt.Printf("Se ha concedido un voto a %d\n", peticion.CandidateId)
-		nr.voteFor = peticion.CandidateId
-		reply.VoteGranted = true
-		reply.Term = nr.currentTerm
+	lastLogIndex := len(nr.log)
+	lastLogTerm := 0
+	if lastLogIndex > 0 {
+		lastLogTerm = nr.log[lastLogIndex-1].Term
 	}
+	// Recibir respuesta
+	if peticion.Term > nr.currentTerm {
+		nr.canalSeguidor <- true
+		nr.currentTerm = peticion.Term
+		nr.voteFor = -1
+	}
+
+	if nr.currentTerm == peticion.Term &&
+		(nr.voteFor == IntNOINICIALIZADO || nr.voteFor == peticion.CandidateId) &&
+		(peticion.LastLogTerm > lastLogTerm ||
+			(peticion.LastLogTerm == lastLogTerm && peticion.LastLogIndex >= lastLogIndex)) {
+		reply.VoteGranted = true
+		nr.voteFor = peticion.CandidateId
+
+	} else {
+		reply.VoteGranted = false
+	}
+
+	reply.Term = nr.currentTerm
+
+	nr.Mux.Unlock()
 
 	return nil
 }
@@ -554,9 +572,6 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 			nr.votos++
 			if nr.votos > (len(nr.Nodos) / 2) {
 				fmt.Println("Se ha proclamado lider")
-				//Tiene mayoria por lo que se proclama lider
-				nr.NextIndex = make([]int, 3)
-				nr.MatchIndex = make([]int, 3)
 
 				for i := 0; i < len(nr.Nodos); i++ {
 					// Inicializamos nextIndex y matchIndex
@@ -583,6 +598,7 @@ func pedirVotacion(nr *NodoRaft) {
 	var respuesta RespuestaPeticionVoto
 	lastLogIndex := 0
 	lastLogTerm := 0
+	nr.voteFor = nr.Yo
 
 	if len(nr.log) > 0 {
 		lastLogIndex = len(nr.log)
@@ -611,6 +627,7 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 		if reply.Term > nr.currentTerm {
 			nr.currentTerm = reply.Term
 			nr.IdLider = -1
+			nr.voteFor = -1
 			nr.canalSeguidor <- true
 		}
 
@@ -641,6 +658,7 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 
 func enviarLatidos(nr *NodoRaft) {
 
+	fmt.Println("Soy lider")
 	for i := 0; i < len(nr.Nodos); i++ {
 		if nr.Yo != i {
 			nr.Mux.Lock()
