@@ -3,6 +3,9 @@
 kind delete cluster
 ./kind-with-registry.sh
 
+docker stop kind-registry
+docker rm kind-registry
+
 rm Dockerfiles/servidor/servidor
 rm Dockerfiles/cliente/cliente
 
