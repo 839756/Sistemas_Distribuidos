@@ -1,5 +1,7 @@
-FROM scratch
+FROM alpine
 
-COPY servidor /servidor
+WORKDIR /usr/local/bin
+
+COPY servidor .
 
 EXPOSE 6000

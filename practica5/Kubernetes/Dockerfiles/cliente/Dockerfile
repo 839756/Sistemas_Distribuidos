@@ -1,5 +1,7 @@
 FROM alpine
 
-COPY cliente /usr/local/bin/cliente
+WORKDIR /usr/local/bin
+
+COPY cliente .
 
 EXPOSE 7000
