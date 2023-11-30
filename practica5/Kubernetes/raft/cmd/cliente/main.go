@@ -28,7 +28,7 @@ func main() {
 		nodo = append(nodo, rpctimeout.HostPort(endPoint))
 	}
 
-	time.Sleep(4000 * time.Millisecond) //Espera a que se pongan los servidores en marcha
+	time.Sleep(10000 * time.Millisecond) //Espera a que se pongan los servidores en marcha
 
 	err := nodo[0].CallTimeout("NodoRaft.SometerOperacionRaft",
 		raft.TipoOperacion{Operacion: "leer", Clave: "1", Valor: ""}, &reply, 2000*time.Millisecond)

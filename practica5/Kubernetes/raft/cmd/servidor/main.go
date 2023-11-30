@@ -3,6 +3,7 @@ package main
 import (
 	//"errors"
 	"fmt"
+	"strings"
 	//"log"
 	"net"
 	"net/rpc"
@@ -17,7 +18,8 @@ import (
 func main() {
 
 	// obtener entero de indice de este nodo
-	me, err := strconv.Atoi(os.Args[1])
+	name := strings.Split(os.Args[1], "-")[0]
+	me, err := strconv.Atoi(strings.Split(os.Args[1], "-")[1])
 	check.CheckError(err, "Main, mal numero entero de indice de nodo:")
 
 	datos := make(map[string]string)
@@ -26,7 +28,7 @@ func main() {
 	var nodos []rpctimeout.HostPort
 
 	for i := 0; i < 3; i++ {
-		dir := "ss-" + strconv.Itoa(i) + ss_service
+		dir := name + "-" + strconv.Itoa(i) + ss_service
 		dir_servidores = append(dir_servidores, dir)
 	}
 
