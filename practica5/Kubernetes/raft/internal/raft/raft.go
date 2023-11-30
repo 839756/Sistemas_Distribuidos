@@ -196,6 +196,7 @@ func (nr *NodoRaft) mantenerCommitIndex() {
 // poner en marcha Gorutinas para trabajos de larga duracion
 func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	canalAplicarOperacion chan AplicaOperacion) *NodoRaft {
+	time.Sleep(5000 * time.Millisecond) //Espera a que se pongan los servidores en ready
 	nr := &NodoRaft{}
 	nr.Nodos = nodos
 	nr.Yo = yo
