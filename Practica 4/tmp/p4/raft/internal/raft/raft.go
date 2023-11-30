@@ -116,7 +116,7 @@ func tiempoEsperaAleatorio() time.Duration {
 }
 
 func maquinaEstadosNodo(nr *NodoRaft) {
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	for {
 
 		if nr.lastApplied < nr.commitIndex {
@@ -133,7 +133,6 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 			case <-time.After(tiempoEsperaAleatorio()):
 				nr.IdLider = -1
 				nr.estado = "candidato"
-				//nr.Logger.Println("soy candidato")
 			}
 		} else if nr.estado == "candidato" {
 			nr.voteFor = nr.Yo
@@ -143,7 +142,6 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 			select {
 			case <-nr.canalLider:
 				nr.estado = "lider"
-				//nr.Logger.Println("soy lider")
 			case <-nr.canalSeguidor:
 				nr.estado = "seguidor"
 			case <-nr.latido:
@@ -159,6 +157,7 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 			case <-nr.canalSeguidor:
 				nr.estado = "seguidor"
 			case <-time.After(time.Duration(50 * time.Millisecond)):
+
 			}
 		}
 	}
@@ -211,14 +210,7 @@ func NuevoNodo(nodos []rpctimeout.HostPort, yo int,
 	nr.canalSeguidor = make(chan bool)
 	nr.latido = make(chan bool)
 	nr.AplicarOperacion = canalAplicarOperacion
-	nuevaEntrada := Entrada{
-		0,
-		0,
-		TipoOperacion{},
-	}
-	nr.log = append(nr.log, nuevaEntrada)
-	nr.NextIndex = make([]int, 3)
-	nr.MatchIndex = make([]int, 3)
+	nr.log = []Entrada{}
 
 	if kEnableDebugLogs {
 		nombreNodo := nodos[yo].Host() + "_" + nodos[yo].Port()
@@ -430,7 +422,7 @@ func (nr *NodoRaft) PedirVoto(peticion *ArgsPeticionVoto,
 		reply.VoteGranted = false
 	} else if peticion.Term > nr.currentTerm {
 
-		fmt.Printf("El termino del candidato: %d, el termino mio: %d", peticion.Term, nr.currentTerm)
+		fmt.Printf("El termino del candidato: %d, el termino mio: %d\n", peticion.Term, nr.currentTerm)
 
 		if len(nr.log) == 0 || nr.mejorLider(peticion.LastLogTerm, peticion.LastLogIndex) {
 			fmt.Printf("Se ha concedido un voto a %d\n", peticion.CandidateId)
@@ -591,22 +583,27 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 			nr.canalSeguidor <- true
 
 		} else if reply.VoteGranted { //Se recibe voto
+			nr.Mux.Lock()
 			nr.votos++
 			if nr.votos > (len(nr.Nodos) / 2) {
 				//Tiene mayoria por lo que se proclama lider
+				nr.NextIndex = make([]int, 3)
+				nr.MatchIndex = make([]int, 3)
 
 				for i := 0; i < len(nr.Nodos); i++ {
 					// Inicializamos nextIndex y matchIndex
-					nr.Mux.Lock()
+					fmt.Println("Soy lider")
+
 					nr.NextIndex[i] = len(nr.log) + 1
 					nr.MatchIndex[i] = 0
 
 					nr.Logger.Printf("Para el nodo: %d NextIndex: %d y len: %d", i, nr.NextIndex[i], len(nr.log))
-					nr.Mux.Unlock()
+
 				}
 
 				nr.canalLider <- true
 			}
+			nr.Mux.Unlock()
 		}
 		return true
 
@@ -643,15 +640,14 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 		&reply, 50*time.Millisecond)
 
 	if fallo == nil {
-
+		nr.Mux.Lock()
 		//En el caso que se pida voto a un mandato superior
 		if reply.Term > nr.currentTerm {
 			nr.currentTerm = reply.Term
 			nr.IdLider = -1
-			nr.voteFor = -1
 			nr.canalSeguidor <- true
 		}
-		nr.Mux.Lock()
+
 		if len(args.Entries) > 0 {
 			if reply.Success {
 				lenght := len(nr.log)
