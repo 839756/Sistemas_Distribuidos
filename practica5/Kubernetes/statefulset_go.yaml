@@ -47,7 +47,7 @@ spec:
             fieldRef:
               fieldPath: metadata.name
         command:
-        - Dockerfiles/servidor/servidor
+        - /servidor
         - $(MINOMBREPOD).$(MISUBDOMINIODNS):6000
         ports:
         - containerPort: 6000
@@ -63,6 +63,6 @@ spec:
   - name: cliente
     image: localhost:5001/cliente:latest
     command:
-    - Dockerfiles/cliente/cliente
+    - /usr/local/bin/cliente
     ports:
     - containerPort: 7000
