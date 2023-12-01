@@ -38,7 +38,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: servidor
-          image: 839756/sistemas-sistribuidos:servidor
+          image: localhost:5000/servidor:latest
           env:
             - name: MISUBDOMINIODNS
               value: ss-service.default.svc.cluster.local
@@ -61,8 +61,9 @@ spec:
   restartPolicy: OnFailure
   containers:
     - name: cliente
-      image: 839756/sistemas-sistribuidos:cliente
-      command: #["sleep", "3600"]
-        - /usr/local/bin/cliente
+      image: localhost:5000/cliente:latest
+      command:
+        ["sleep", "3600"]
+        #- /usr/local/bin/cliente
       ports:
         - containerPort: 7000
