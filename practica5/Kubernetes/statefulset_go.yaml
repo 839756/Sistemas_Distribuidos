@@ -38,7 +38,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: servidor
-          image: localhost:5001/servidor:latest
+          image: 839756/sistemas-sistribuidos:servidor
           env:
             - name: MISUBDOMINIODNS
               value: ss-service.default.svc.cluster.local
@@ -46,7 +46,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-          command:
+          command: #["sleep", "3600"]
             - /servidor
             - $(MINOMBREPOD)
           ports:
@@ -61,22 +61,8 @@ spec:
   restartPolicy: OnFailure
   containers:
     - name: cliente
-      image: localhost:5001/cliente:latest
-      command:
+      image: 839756/sistemas-sistribuidos:cliente
+      command: #["sleep", "3600"]
         - /usr/local/bin/cliente
-      ports:
-        - containerPort: 7000
-
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: no33
-spec:
-  restartPolicy: OnFailure
-  containers:
-    - name: no33
-      image: alpine
-      command: ["sleep", "3600"]
       ports:
         - containerPort: 7000

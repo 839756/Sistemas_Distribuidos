@@ -1,7 +1,5 @@
 FROM alpine
 
-WORKDIR /usr/local/bin
-
-COPY servidor .
+COPY servidor /servidor
 
 EXPOSE 6000

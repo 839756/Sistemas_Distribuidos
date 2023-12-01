@@ -104,5 +104,4 @@ func pararNodo(replica int, nodo []rpctimeout.HostPort) {
 	check.CheckError(err, "Error en llamada RPC ParaNodo")
 
 	time.Sleep(2000 * time.Millisecond)
-
 }
