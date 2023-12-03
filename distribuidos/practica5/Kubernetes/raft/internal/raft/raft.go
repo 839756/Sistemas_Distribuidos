@@ -624,7 +624,7 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 		&reply, 50*time.Millisecond)
 
 	if fallo == nil {
-		nr.Mux.Lock()
+		
 		//En el caso que se pida voto a un mandato superior
 		if reply.Term > nr.currentTerm {
 			nr.currentTerm = reply.Term
@@ -636,8 +636,10 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 		if len(args.Entries) > 0 {
 			if reply.Success {
 				lenght := len(nr.log)
+				nr.Mux.Lock()
 				nr.NextIndex[nodo] = lenght + 1
 				nr.MatchIndex[nodo] = lenght
+				nr.Mux.Unlock()
 			} else {
 				fmt.Println("")
 				fmt.Printf("Para el nodo %d\n", nodo)
@@ -649,7 +651,7 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 				fmt.Println("")
 			}
 		}
-		nr.Mux.Unlock()
+		
 		return true
 
 	} else {
@@ -664,7 +666,6 @@ func enviarLatidos(nr *NodoRaft) {
 
 	for i := 0; i < len(nr.Nodos); i++ {
 		if nr.Yo != i {
-			nr.Mux.Lock()
 			prevLogIndex := 0
 			prevLogTerm := 0
 
@@ -693,7 +694,7 @@ func enviarLatidos(nr *NodoRaft) {
 
 				//nr.Logger.Printf("Para el nodo %d, NextIndex: %d, Len: %d and PrevLogIndex: %d", i, nr.NextIndex[i], len(nr.log), PrevLogIndex)
 			}
-			nr.Mux.Unlock()
+			
 			nr.enviarLatido(i,
 				ArgAppendEntries{nr.currentTerm,
 					nr.Yo, prevLogIndex,

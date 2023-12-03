@@ -49,6 +49,7 @@ func main() {
 	fmt.Println("El indice resultante es:", reply.IndiceRegistro, "y el mandato resultante es: ", reply.Mandato)
 	fmt.Println()
 
+
 	//Se somete una operacion tras una caida de seguidor
 	for i := 0; i < 3; i++ {
 		if i != lider {
@@ -67,6 +68,8 @@ func main() {
 	}
 	fmt.Println()
 
+	time.Sleep(5000 * time.Millisecond) //Espera a que se pongan los servidores en marcha
+	
 	//Se somete una operacion tras una caida del lider
 	pararNodo(lider, nodo)
 	fmt.Println("Se ha parado el actual lider: ", lider)
