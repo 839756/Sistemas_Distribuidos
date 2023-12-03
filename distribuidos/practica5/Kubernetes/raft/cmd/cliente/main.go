@@ -29,33 +29,34 @@ func main() {
 	}
 
 	fmt.Println("Comienza el cliente")
+	fmt.Println()
 
-	time.Sleep(10 * time.Second) //Espera a que se pongan los servidores en marcha
+	time.Sleep(10000 * time.Millisecond) //Espera a que se pongan los servidores en marcha
 
 	lider := obtenerLider(3, nodo) //Se obtiene el lider
 	if lider == -1 {
 		fmt.Println("No se ha elegido lider")
-	} else {
-		fmt.Printf("El lider obtenido es %d\n", lider)
+	}else{
+		fmt.Println("El lider es ", lider)
 	}
-
-	time.Sleep(5 * time.Second) //Espera a que se pongan los servidores en marcha
 
 	//Se somete una operacion
 	err := nodo[lider].CallTimeout("NodoRaft.SometerOperacionRaft",
-		raft.TipoOperacion{Operacion: "leer", Clave: "1", Valor: "1"}, &reply, 2000*time.Millisecond)
+		raft.TipoOperacion{Operacion: "leer", Clave: "1", Valor: ""}, &reply, 1000*time.Millisecond)
 	check.CheckError(err, "Ha fallado la llamada")
 
 	fmt.Println("Operacion basica sometida")
 	fmt.Println("El indice resultante es:", reply.IndiceRegistro, "y el mandato resultante es: ", reply.Mandato)
-/*
+	fmt.Println()
+
 	//Se somete una operacion tras una caida de seguidor
 	for i := 0; i < 3; i++ {
 		if i != lider {
 			pararNodo(i, nodo)
+			fmt.Println("Se ha parado el nodo: ", i)
 
 			err = nodo[lider].CallTimeout("NodoRaft.SometerOperacionRaft",
-				raft.TipoOperacion{Operacion: "escribir", Clave: "2", Valor: "2"}, &reply, 1*time.Second)
+				raft.TipoOperacion{Operacion: "escribir", Clave: "2", Valor: "2"}, &reply, 1000*time.Millisecond)
 			check.CheckError(err, "Ha fallado la llamada")
 
 			fmt.Println("Operacion con caida de seguidor sometida")
@@ -64,23 +65,28 @@ func main() {
 			break
 		}
 	}
+	fmt.Println()
 
 	//Se somete una operacion tras una caida del lider
 	pararNodo(lider, nodo)
+	fmt.Println("Se ha parado el actual lider: ", lider)
 
 	lider = obtenerLider(3, nodo)
 	if lider == -1 {
 		fmt.Println("No se ha elegido lider tras la caida del anterior")
+	}else{
+		fmt.Println("Ahora el lider es ", lider)
 	}
 
 	err = nodo[lider].CallTimeout("NodoRaft.SometerOperacionRaft",
-		raft.TipoOperacion{Operacion: "leer", Clave: "3", Valor: ""}, &reply, 2000*time.Seco)
+		raft.TipoOperacion{Operacion: "leer", Clave: "3", Valor: ""}, &reply, 1000*time.Millisecond)
 	check.CheckError(err, "Ha fallado la llamada")
 
 	fmt.Println("Operacion con caida de lider sometida")
 	fmt.Println("El indice resultante es:", reply.IndiceRegistro, "y el mandato resultante es: ", reply.Mandato)
 
-	fmt.Println("Ha terminando de enviar cosas")*/
+	fmt.Println()
+	fmt.Println("Ha terminando de enviar cosas")
 }
 
 // --------------------------------------------------------------------------
@@ -89,10 +95,10 @@ func main() {
 func obtenerLider(numreplicas int, nodo []rpctimeout.HostPort) int {
 	var reply raft.EstadoRemoto
 
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(3000 * time.Millisecond)
 	for i := 0; i < numreplicas; i++ {
 		err := nodo[i].CallTimeout("NodoRaft.ObtenerEstadoNodo",
-			raft.Vacio{}, &reply, 1*time.Second)
+			raft.Vacio{}, &reply, 100*time.Millisecond)
 		check.CheckError(err, "Error en llamada RPC ObtenerEstadoRemoto")
 		if reply.EsLider {
 			return reply.IdLider
@@ -106,8 +112,8 @@ func pararNodo(replica int, nodo []rpctimeout.HostPort) {
 	var reply raft.EstadoRemoto
 
 	err := nodo[replica].CallTimeout("NodoRaft.ParaNodo",
-		raft.Vacio{}, &reply, 1*time.Second)
+		raft.Vacio{}, &reply, 100*time.Millisecond)
 	check.CheckError(err, "Error en llamada RPC ParaNodo")
 
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 }
