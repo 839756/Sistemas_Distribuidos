@@ -134,9 +134,6 @@ func maquinaEstadosNodo(nr *NodoRaft) {
 				nr.estado = "candidato"
 			}
 		} else if nr.estado == "candidato" {
-			nr.voteFor = nr.Yo
-			nr.votos = 1
-			nr.currentTerm++
 			pedirVotacion(nr)
 			select {
 			case <-nr.canalLider:
@@ -412,54 +409,34 @@ type RespuestaPeticionVoto struct {
 func (nr *NodoRaft) PedirVoto(peticion *ArgsPeticionVoto,
 	reply *RespuestaPeticionVoto) error {
 	nr.Mux.Lock()
-	fmt.Printf("LastLogTerm %d , LastLogIndex %d\n", peticion.LastLogTerm, peticion.LastLogIndex)
-	// Recibir respuesta
-	if peticion.Term <= nr.currentTerm {
-		reply.VoteGranted = false
-		reply.Term = nr.currentTerm
-	} else if peticion.Term == nr.currentTerm && peticion.CandidateId != nr.voteFor {
-		reply.Term = nr.currentTerm
-		reply.VoteGranted = false
-	} else if peticion.Term > nr.currentTerm {
-
-		fmt.Printf("El termino del candidato: %d, el termino mio: %d\n", peticion.Term, nr.currentTerm)
-
-		if len(nr.log) == 0 || nr.mejorLider(peticion.LastLogTerm, peticion.LastLogIndex) {
-			fmt.Printf("Se ha concedido un voto a %d\n", peticion.CandidateId)
-			nr.currentTerm = peticion.Term
-			nr.voteFor = peticion.CandidateId
-			reply.Term = nr.currentTerm
-			reply.VoteGranted = true
-		} else {
-			nr.currentTerm = peticion.Term
-			reply.Term = nr.currentTerm
-			reply.VoteGranted = false
-		}
-
-		if nr.estado == "candidato" || nr.estado == "lider" {
-			nr.canalSeguidor <- true
-		}
+	
+	lastLogIndex := len(nr.log)
+	lastLogTerm := 0
+	if lastLogIndex > 0 {
+		lastLogTerm = nr.log[lastLogIndex-1].Term
 	}
-
+	fmt.Printf("LastLogTerm %d , LastLogIndex %d\n", peticion.LastLogTerm, peticion.LastLogIndex)
+	
 	nr.Mux.Unlock()
 
-	return nil
-}
-
-// -----------------------------------------------------------------------------
-// Función auxiliar para pedir voto
-
-func (nr *NodoRaft) mejorLider(lastLogTerm int, lastLogIndex int) bool {
-
-	if lastLogTerm > nr.log[len(nr.log)-1].Term {
-		return true
-	} else if lastLogTerm == nr.log[len(nr.log)-1].Term {
-		if lastLogIndex >= len(nr.log)-1 {
-			return true
-		}
+	if peticion.Term > nr.currentTerm {
+		nr.canalSeguidor <- true
+		nr.currentTerm = peticion.Term
+		nr.voteFor = -1
 	}
 
-	return false
+	if peticion.Term == nr.currentTerm && 
+	(nr.voteFor == IntNOINICIALIZADO || nr.voteFor == peticion.CandidateId) &&
+	(peticion.LastLogTerm > lastLogTerm || (peticion.LastLogTerm == lastLogTerm && peticion.LastLogIndex >= lastLogIndex)){
+		reply.VoteGranted = true
+		nr.voteFor = peticion.CandidateId
+	} else {
+		reply.VoteGranted = false
+	}
+
+	reply.Term = nr.currentTerm
+
+	return nil
 }
 
 type ArgAppendEntries struct {
@@ -580,10 +557,11 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 		//En el caso que se pida voto a un mandato superior
 		if reply.Term > nr.currentTerm {
 			nr.currentTerm = reply.Term
+			nr.voteFor = -1
 			nr.canalSeguidor <- true
 
 		} else if reply.VoteGranted { //Se recibe voto
-			nr.Mux.Lock()
+			
 			nr.votos++
 			if nr.votos > (len(nr.Nodos) / 2) {
 				//Tiene mayoria por lo que se proclama lider
@@ -594,8 +572,10 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 					// Inicializamos nextIndex y matchIndex
 					fmt.Println("Soy lider")
 
+					nr.Mux.Lock()
 					nr.NextIndex[i] = len(nr.log) + 1
 					nr.MatchIndex[i] = 0
+					nr.Mux.Unlock()
 
 					fmt.Printf("Para el nodo: %d NextIndex: %d y len: %d\n", i, nr.NextIndex[i], len(nr.log))
 
@@ -603,7 +583,7 @@ func (nr *NodoRaft) enviarPeticionVoto(nodo int, args *ArgsPeticionVoto,
 
 				nr.canalLider <- true
 			}
-			nr.Mux.Unlock()
+			
 		}
 		return true
 
@@ -617,11 +597,15 @@ func pedirVotacion(nr *NodoRaft) {
 	lastLogIndex := 0
 	lastLogTerm := 0
 	nr.voteFor = nr.Yo
+	nr.votos = 1
+	nr.currentTerm++
 
+	nr.Mux.Lock()
 	if len(nr.log) > 0 {
 		lastLogIndex = len(nr.log)
 		lastLogTerm = nr.log[lastLogIndex-1].Term
 	}
+	nr.Mux.Unlock()
 
 	for i := 0; i < len(nr.Nodos); i++ {
 		if nr.Yo != i {
@@ -645,6 +629,7 @@ func (nr *NodoRaft) enviarLatido(nodo int, args ArgAppendEntries) bool {
 		if reply.Term > nr.currentTerm {
 			nr.currentTerm = reply.Term
 			nr.IdLider = -1
+			nr.voteFor = -1
 			nr.canalSeguidor <- true
 		}
 
@@ -692,7 +677,7 @@ func enviarLatidos(nr *NodoRaft) {
 
 			fmt.Printf("Longitud es: %d y NextIndex es: %d para nodo %d\n", len(nr.log), nr.NextIndex[i], i)
 
-			if len(nr.log) > nr.NextIndex[i] {
+			if len(nr.log) >= nr.NextIndex[i] {
 
 				fmt.Printf("Se envia una entrada para %d\n", i)
 
